@@ -1,89 +1,123 @@
-import { Button } from '@/components/ui/button';
-import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
-import { THEME } from '@/lib/theme';
-import { Link, Stack } from 'expo-router';
-import { MoonStarIcon, StarIcon, SunIcon } from 'lucide-react-native';
-import { useColorScheme } from 'nativewind';
-import * as React from 'react';
-import { Image, type ImageStyle, View } from 'react-native';
+import { View } from '@/components/ui/view';
+import { useAuth } from '@/src/hooks/useAuth';
+import { router } from 'expo-router';
+import { useEffect } from 'react';
+import { ActivityIndicator, StyleSheet } from 'react-native';
+import { useThemeColor } from '@/hooks/useThemeColor';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withSpring,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 
-const LOGO = {
-  light: require('@/assets/images/react-native-reusables-light.png'),
-  dark: require('@/assets/images/react-native-reusables-dark.png'),
-};
+export default function SplashScreen() {
+  const { isAuthenticated, isLoading, hasCompletedOnboarding } = useAuth();
+  const backgroundColor = useThemeColor({}, 'background');
+  const primaryColor = useThemeColor({}, 'primary');
+  
+  // Animation values
+  const logoScale = useSharedValue(0);
+  const logoOpacity = useSharedValue(0);
 
-const SCREEN_OPTIONS = {
-  light: {
-    title: 'React Native Reusables',
-    headerTransparent: true,
-    headerShadowVisible: true,
-    headerStyle: { backgroundColor: THEME.light.background },
-    headerRight: () => <ThemeToggle />,
-  },
-  dark: {
-    title: 'React Native Reusables',
-    headerTransparent: true,
-    headerShadowVisible: true,
-    headerStyle: { backgroundColor: THEME.dark.background },
-    headerRight: () => <ThemeToggle />,
-  },
-};
+  // Initialize logo animation - more subtle
+  useEffect(() => {
+    logoOpacity.value = withTiming(1, { duration: 800 });
+    logoScale.value = withSequence(
+      withSpring(1.05, { damping: 15, stiffness: 150 }),
+      withSpring(1, { damping: 12, stiffness: 120 })
+    );
+  }, []);
 
-const IMAGE_STYLE: ImageStyle = {
-  height: 76,
-  width: 76,
-};
+  // Handle navigation based on auth state
+  useEffect(() => {
+    if (isLoading) return;
 
-export default function Screen() {
-  const { colorScheme } = useColorScheme();
+    const timer = setTimeout(() => {
+      if (!isAuthenticated) {
+        router.replace('/welcome');
+      } else if (!hasCompletedOnboarding) {
+        router.replace('/(auth)/onboarding');
+      } else {
+        router.replace('/(tabs)');
+      }
+    }, 1500); // Show splash for minimum 1.5s
+
+    return () => clearTimeout(timer);
+  }, [isAuthenticated, isLoading, hasCompletedOnboarding]);
+
+  const logoAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: logoScale.value }],
+      opacity: logoOpacity.value,
+    };
+  });
 
   return (
-    <>
-      <Stack.Screen options={SCREEN_OPTIONS[colorScheme ?? 'light']} />
-      <View className="flex-1 items-center justify-center gap-8 p-4">
-        <Image source={LOGO[colorScheme ?? 'light']} style={IMAGE_STYLE} resizeMode="contain" />
-        <View className="gap-2 p-4">
-          <Text className="ios:text-foreground font-mono text-sm text-muted-foreground">
-            1. Edit <Text variant="code">app/index.tsx</Text> to get started.
-          </Text>
-          <Text className="ios:text-foreground font-mono text-sm text-muted-foreground">
-            2. Save to see your changes instantly.
+    <View style={[styles.container, { backgroundColor }]}>
+      <Animated.View style={[styles.logoContainer, logoAnimatedStyle]}>
+        <View style={[styles.logo, { backgroundColor: primaryColor }]}>
+          <Text variant="heading" style={styles.logoText}>
+            C
           </Text>
         </View>
-        <View className="flex-row gap-2">
-          <Link href="https://reactnativereusables.com" asChild>
-            <Button>
-              <Text>Browse the Docs</Text>
-            </Button>
-          </Link>
-          <Link href="https://github.com/founded-labs/react-native-reusables" asChild>
-            <Button variant="ghost">
-              <Text>Star the Repo</Text>
-              <Icon as={StarIcon} />
-            </Button>
-          </Link>
-        </View>
+        <Text variant="title" style={styles.appName}>
+          Cheevo
+        </Text>
+        <Text variant="caption" style={styles.tagline}>
+          Campus. Anonymous. Unfiltered.
+        </Text>
+      </Animated.View>
+
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="small" color={primaryColor} />
       </View>
-    </>
+    </View>
   );
 }
 
-const THEME_ICONS = {
-  light: SunIcon,
-  dark: MoonStarIcon,
-};
-
-function ThemeToggle() {
-  const { colorScheme, toggleColorScheme } = useColorScheme();
-
-  return (
-    <Button
-      onPressIn={toggleColorScheme}
-      size="icon"
-      variant="ghost"
-      className="rounded-full web:mx-4">
-      <Icon as={THEME_ICONS[colorScheme ?? 'light']} className="size-5" />
-    </Button>
-  );
-}
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 60,
+  },
+  logo: {
+    width: 80,
+    height: 80,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  logoText: {
+    color: 'white',
+    fontSize: 36,
+    fontWeight: '800',
+  },
+  appName: {
+    marginBottom: 8,
+    fontWeight: '700',
+  },
+  tagline: {
+    opacity: 0.6,
+  },
+  loadingContainer: {
+    position: 'absolute',
+    bottom: 100,
+  },
+});
