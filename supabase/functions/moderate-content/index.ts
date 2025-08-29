@@ -1,6 +1,11 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 // Types
 interface ModerationRequest {
   content: string;
@@ -15,6 +20,7 @@ interface ModerationResult {
   action: 'approved' | 'removed' | 'manual_review';
   violations: string[];
   openaiResponse: any;
+  timestamp: string;
 }
 
 interface ModerationConfig {
@@ -25,22 +31,22 @@ interface ModerationConfig {
 }
 
 serve(async (req) => {
-  // Handle CORS
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      },
-    });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    // Initialize Supabase client with service role
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Initialize Supabase client
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Validate HTTP method
+    if (req.method !== 'POST') {
+      throw new Error('Only POST method is allowed');
+    }
 
     // Get OpenAI API key
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
@@ -48,27 +54,37 @@ serve(async (req) => {
       throw new Error('OPENAI_API_KEY not configured');
     }
 
-    // Parse request
-    if (req.method !== 'POST') {
-      return new Response('Method not allowed', { status: 405 });
+    // Parse request body
+    const requestBody: ModerationRequest = await req.json();
+    const { content, contentType, contentId, userId } = requestBody;
+
+    // Validate required parameters
+    if (!content?.trim()) {
+      throw new Error('Content cannot be empty');
+    }
+    if (!contentType) {
+      throw new Error('Content type is required');
+    }
+    if (!userId?.trim()) {
+      throw new Error('User ID is required');
     }
 
-    const { content, contentType, contentId, userId }: ModerationRequest = await req.json();
-
-    if (!content || !contentType || !userId) {
-      return new Response('Missing required fields', { status: 400 });
+    // Validate content type
+    const validContentTypes = ['post', 'comment'];
+    if (!validContentTypes.includes(contentType)) {
+      throw new Error(`Invalid content type: ${contentType}. Valid options: ${validContentTypes.join(', ')}`);
     }
 
     console.log(`Moderating ${contentType} from user ${userId}`);
 
     // Load moderation configs
-    const { data: moderationConfigs, error: configError } = await supabase
+    const { data: moderationConfigs, error: configError } = await supabaseClient
       .from('moderation_config')
       .select('*');
 
     if (configError) {
       console.error('Failed to load moderation config:', configError);
-      return new Response('Configuration error', { status: 500 });
+      throw new Error('Failed to load moderation configuration');
     }
 
     // Call OpenAI Moderation API
@@ -87,7 +103,7 @@ serve(async (req) => {
     if (!moderationResponse.ok) {
       const errorText = await moderationResponse.text();
       console.error('OpenAI API error:', errorText);
-      return new Response('Moderation service error', { status: 500 });
+      throw new Error(`OpenAI moderation API error: ${moderationResponse.status} ${moderationResponse.statusText}`);
     }
 
     const moderationData = await moderationResponse.json();
@@ -123,10 +139,11 @@ serve(async (req) => {
       action: highestAction,
       violations,
       openaiResponse: moderationData,
+      timestamp: new Date().toISOString()
     };
 
     // Log moderation result
-    const { error: logError } = await supabase
+    const { error: logError } = await supabaseClient
       .from('moderation_logs')
       .insert({
         content_type: contentType,
@@ -142,16 +159,43 @@ serve(async (req) => {
       // Don't fail the request for logging errors
     }
 
-    return new Response(JSON.stringify(moderationResult), {
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
+    return Response.json(moderationResult, {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
   } catch (error) {
-    console.error('Moderation function error:', error);
-    return new Response('Internal server error', { status: 500 });
+    console.error('Moderation function error:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Determine appropriate status code based on error type
+    let statusCode = 500;
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    
+    if (errorMessage.includes('Content cannot be empty') || 
+        errorMessage.includes('Content type is required') ||
+        errorMessage.includes('User ID is required') ||
+        errorMessage.includes('Invalid content type')) {
+      statusCode = 400;
+    } else if (errorMessage.includes('OPENAI_API_KEY not configured')) {
+      statusCode = 503; // Service unavailable
+    }
+
+    const errorResponse: ModerationResult = {
+      approved: false,
+      flagged: true,
+      action: 'manual_review',
+      violations: ['moderation_error'],
+      openaiResponse: null,
+      timestamp: new Date().toISOString()
+    };
+
+    return Response.json(errorResponse, { 
+      status: statusCode,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   }
 });
 

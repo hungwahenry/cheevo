@@ -1,12 +1,16 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// Types
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 interface CreatePostRequest {
   content: string;
   giphyUrl?: string;
-  userId: string;
-  universityId: number;
+  userId?: string; // Made optional since we'll get from JWT
+  universityId?: number; // Made optional since we'll get from user profile
 }
 
 interface CreatePostResponse {
@@ -14,50 +18,65 @@ interface CreatePostResponse {
   status: 'published' | 'pending_review' | 'rejected';
   message: string;
   postId?: number;
+  timestamp: string;
 }
 
 serve(async (req) => {
-  // Handle CORS
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      },
-    });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    // Initialize Supabase client with service role
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Initialize Supabase client
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
 
-    // Parse request
+    // Validate HTTP method
     if (req.method !== 'POST') {
-      return new Response('Method not allowed', { status: 405 });
+      throw new Error('Only POST method is allowed');
     }
 
-    const { content, giphyUrl, userId, universityId }: CreatePostRequest = await req.json();
-
-    if (!content?.trim() || !userId || !universityId) {
-      return new Response(JSON.stringify({
-        success: false,
-        status: 'rejected',
-        message: 'Missing required fields'
-      }), { 
-        status: 400,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
+    // Get user from JWT
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('Missing authorization header');
     }
 
-    console.log(`Creating post for user ${userId} at university ${universityId}`);
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    );
 
-    // Note: User ban checking moved to manual reporting system
+    if (userError || !user) {
+      throw new Error('Invalid or expired token');
+    }
+
+    // Get user profile for university_id
+    const { data: userProfile, error: profileError } = await supabaseClient
+      .from('user_profiles')
+      .select('university_id')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !userProfile) {
+      throw new Error('User profile not found');
+    }
+
+    // Parse request body
+    const requestBody: CreatePostRequest = await req.json();
+    const { content, giphyUrl } = requestBody;
+
+    // Validate required parameters
+    if (!content?.trim()) {
+      throw new Error('Post content cannot be empty');
+    }
+
+    console.log(`Creating post for user ${user.id} at university ${userProfile.university_id}`);
 
     // Get post content limits from config
-    const { data: maxLengthConfig } = await supabase
+    const { data: maxLengthConfig } = await supabaseClient
       .from('app_config')
       .select('value')
       .eq('key', 'max_post_length')
@@ -65,37 +84,28 @@ serve(async (req) => {
 
     const maxLength = maxLengthConfig?.value ? parseInt(maxLengthConfig.value) : 280;
 
+    // Additional validations with proper error throwing
     if (content.trim().length > maxLength) {
-      return new Response(JSON.stringify({
-        success: false,
-        status: 'rejected',
-        message: `Post exceeds maximum length of ${maxLength} characters`
-      }), { 
-        status: 400,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
+      throw new Error(`Post exceeds maximum length of ${maxLength} characters`);
+    }
+
+    if (content.trim().length < 1) {
+      throw new Error('Post content cannot be empty');
     }
 
     // Validate Giphy URL if provided
     if (giphyUrl && (!giphyUrl.includes('giphy.com') || !giphyUrl.startsWith('https://'))) {
-      return new Response(JSON.stringify({
-        success: false,
-        status: 'rejected',
-        message: 'Invalid GIF URL format'
-      }), { 
-        status: 400,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
+      throw new Error('Invalid GIF URL format. Must be a valid HTTPS Giphy URL');
     }
 
     // Create post first (with flagged status pending moderation)
-    const { data: post, error: postError } = await supabase
+    const { data: post, error: postError } = await supabaseClient
       .from('posts')
       .insert({
         content: content.trim(),
         giphy_url: giphyUrl || null,
-        user_id: userId,
-        university_id: universityId,
+        user_id: user.id,
+        university_id: userProfile.university_id,
         is_flagged: true, // Start as flagged until moderation completes
       })
       .select('id')
@@ -103,30 +113,23 @@ serve(async (req) => {
 
     if (postError) {
       console.error('Error creating post:', postError);
-      return new Response(JSON.stringify({
-        success: false,
-        status: 'rejected',
-        message: 'Failed to create post'
-      }), { 
-        status: 500,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
+      throw new Error('Failed to create post in database');
     }
 
     const postId = post.id;
 
     // Call moderation Edge Function
-    const moderationResponse = await fetch(`${supabaseUrl}/functions/v1/moderate-content`, {
+    const moderationResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/moderate-content`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${supabaseServiceKey}`,
+        'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         content: content.trim(),
         contentType: 'post',
         contentId: postId,
-        userId
+        userId: user.id
       })
     });
 
@@ -151,7 +154,7 @@ serve(async (req) => {
 
     if (moderationResult.action === 'approved') {
       // Publish the post with moderation score
-      await supabase
+      await supabaseClient
         .from('posts')
         .update({ 
           is_flagged: false,
@@ -163,7 +166,7 @@ serve(async (req) => {
       responseMessage = 'Post published successfully';
     } else if (moderationResult.action === 'manual_review') {
       // Keep flagged for manual review with moderation score
-      await supabase
+      await supabaseClient
         .from('posts')
         .update({ 
           is_flagged: true,
@@ -175,7 +178,7 @@ serve(async (req) => {
       responseMessage = 'Post created but requires review before publishing';
     } else {
       // Remove/reject the post
-      await supabase
+      await supabaseClient
         .from('posts')
         .delete()
         .eq('id', postId);
@@ -188,25 +191,48 @@ serve(async (req) => {
       success: postStatus !== 'rejected',
       status: postStatus,
       message: responseMessage,
-      postId: postStatus !== 'rejected' ? postId : undefined
+      postId: postStatus !== 'rejected' ? postId : undefined,
+      timestamp: new Date().toISOString()
     };
 
-    return new Response(JSON.stringify(response), {
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
+    return Response.json(response, { 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
   } catch (error) {
-    console.error('Post creation function error:', error);
-    return new Response(JSON.stringify({
+    console.error('Post creation function error:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Determine appropriate status code based on error type
+    let statusCode = 500;
+    let status: 'rejected' | 'pending_review' = 'rejected';
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    
+    if (errorMessage.includes('Missing required parameters') || 
+        errorMessage.includes('Post content cannot be empty') ||
+        errorMessage.includes('Post exceeds maximum length') ||
+        errorMessage.includes('Invalid GIF URL format')) {
+      statusCode = 400;
+    } else if (errorMessage.includes('Invalid or expired token') || 
+               errorMessage.includes('Missing authorization header')) {
+      statusCode = 401;
+    } else if (errorMessage.includes('User profile not found')) {
+      statusCode = 404;
+    }
+
+    const errorResponse: CreatePostResponse = {
       success: false,
-      status: 'rejected',
-      message: 'Internal server error'
-    }), { 
-      status: 500,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      status,
+      message: errorMessage,
+      timestamp: new Date().toISOString()
+    };
+
+    return Response.json(errorResponse, { 
+      status: statusCode,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 });

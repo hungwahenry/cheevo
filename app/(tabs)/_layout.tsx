@@ -87,13 +87,6 @@ export default function TabLayout() {
         }}
       />
 
-      <Tabs.Screen
-        name='create'
-        options={{
-          title: 'Create',
-          href: null, // Completely exclude from tab bar
-        }}
-      />
       </Tabs>
 
       {/* Floating Action Button */}

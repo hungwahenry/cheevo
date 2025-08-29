@@ -40,7 +40,6 @@ export const useAuth = () => {
     checkUsernameAvailability,
 
     // Computed values  
-    isNewUser: state.isAuthenticated && !state.hasCompletedOnboarding,
     userEmail: state.authUser?.email || null,
     username: state.userProfile?.username || null,
     universityId: state.userProfile?.universityId || null,

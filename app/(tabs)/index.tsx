@@ -1,15 +1,49 @@
 import { Text } from '@/components/ui/text';
 import { View } from '@/components/ui/view';
+import { useThemeColor } from '@/hooks/useThemeColor';
+import React, { useState } from 'react';
 import { StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AlgorithmSelector } from '@/components/feed/AlgorithmSelector';
+import { FeedList } from '@/components/feed/FeedList';
+import { FeedAlgorithm } from '@/src/services/feed.service';
+
+const CAMPUS_ALGORITHMS: FeedAlgorithm[] = ['trending', 'chronological', 'engagement', 'balanced'];
 
 export default function FeedScreen() {
+  const insets = useSafeAreaInsets();
+  const backgroundColor = useThemeColor({}, 'background');
+  const [selectedAlgorithm, setSelectedAlgorithm] = useState<FeedAlgorithm>('trending');
+
+  const handleReaction = (postId: number) => {
+    // TODO: Implement reaction functionality
+    console.log('React to post:', postId);
+  };
+
+  const handleComment = (postId: number) => {
+    // TODO: Implement comment functionality  
+    console.log('Comment on post:', postId);
+  };
+
   return (
-    <View style={styles.container}>
-      <Text variant="heading">Campus Feed</Text>
-      <Text variant="body">Your university posts will appear here</Text>
-      <Text variant="caption" style={styles.hint}>
-        Later: Campus ↔ Global toggle will be added
-      </Text>
+    <View style={[styles.container, { backgroundColor }]}>
+      <View style={[styles.header, { paddingTop: insets.top }]}>
+        <Text variant="title" style={styles.headerTitle}>Campus Feed</Text>
+      </View>
+      
+      <AlgorithmSelector
+        selected={selectedAlgorithm}
+        onSelect={setSelectedAlgorithm}
+        algorithms={CAMPUS_ALGORITHMS}
+      />
+      
+      <FeedList
+        algorithm={selectedAlgorithm}
+        scope="campus"
+        showUniversity={false}
+        onReaction={handleReaction}
+        onComment={handleComment}
+      />
     </View>
   );
 }
@@ -17,12 +51,12 @@ export default function FeedScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
   },
-  hint: {
-    marginTop: 8,
-    opacity: 0.6,
+  header: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  headerTitle: {
+    marginBottom: 2,
   },
 });

@@ -1,17 +1,19 @@
+import { CreatePostRequest, CreatePostResponse, postService } from '@/src/services/post.service';
 import { useState } from 'react';
-import { postService, CreatePostRequest, CreatePostResponse } from '@/src/services/post.service';
 import { useAuth } from './useAuth';
 
 export const usePost = () => {
-  const { user, universityId } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const createPost = async (content: string, giphyUrl?: string): Promise<CreatePostResponse> => {
-    if (!user || !universityId) {
+    // Check authentication status
+    if (!isAuthenticated) {
       return {
         success: false,
         status: 'rejected',
-        message: 'You must be logged in to create a post'
+        message: 'You must be logged in to create a post',
+        timestamp: new Date().toISOString()
       };
     }
 
@@ -21,8 +23,6 @@ export const usePost = () => {
       const request: CreatePostRequest = {
         content: content.trim(),
         giphyUrl,
-        userId: user.id,
-        universityId: universityId,
       };
 
       const result = await postService.createPost(request);
@@ -31,7 +31,8 @@ export const usePost = () => {
       return {
         success: false,
         status: 'rejected',
-        message: 'An unexpected error occurred'
+        message: error instanceof Error ? error.message : 'An unexpected error occurred',
+        timestamp: new Date().toISOString()
       };
     } finally {
       setIsSubmitting(false);

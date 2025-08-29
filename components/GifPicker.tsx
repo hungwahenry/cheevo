@@ -1,7 +1,9 @@
 import { View } from '@/components/ui/view';
 import { Text } from '@/components/ui/text';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { giphyService, GiphyGif } from '@/src/services/giphy.service';
+import { useThemeColor } from '@/hooks/useThemeColor';
 import { Search, X } from 'lucide-react-native';
 import React, { useState, useEffect } from 'react';
 import { 
@@ -9,8 +11,10 @@ import {
   Modal, 
   FlatList, 
   TouchableOpacity, 
-  Image
+  Image,
+  ActivityIndicator
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface GifPickerProps {
   visible: boolean;
@@ -19,6 +23,11 @@ interface GifPickerProps {
 }
 
 export const GifPicker: React.FC<GifPickerProps> = ({ visible, onClose, onSelectGif }) => {
+  const insets = useSafeAreaInsets();
+  const backgroundColor = useThemeColor({}, 'background');
+  const borderColor = useThemeColor({}, 'border');
+  const mutedColor = useThemeColor({}, 'textMuted');
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [gifs, setGifs] = useState<GiphyGif[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -77,42 +86,71 @@ export const GifPicker: React.FC<GifPickerProps> = ({ visible, onClose, onSelect
       presentationStyle="pageSheet"
       onRequestClose={handleClose}
     >
-      <View style={styles.container}>
-        <View style={styles.header}>
+      <View style={[styles.container, { backgroundColor }]}>
+        {/* Header */}
+        <View style={[styles.header, { backgroundColor, borderBottomColor: borderColor }]}>
           <Text variant="title">Choose a GIF</Text>
-          <TouchableOpacity onPress={handleClose}>
-            <X size={24} />
-          </TouchableOpacity>
+          <Button 
+            variant="ghost"
+            size="icon"
+            icon={X}
+            onPress={handleClose}
+            style={styles.closeButton}
+          />
         </View>
 
-        <Input
-          placeholder="Search GIFs..."
-          value={searchQuery}
-          onChangeText={handleSearch}
-          icon={Search}
-          containerStyle={styles.searchInput}
-        />
+        {/* Search */}
+        <View style={styles.searchContainer}>
+          <Input
+            placeholder="Search GIFs..."
+            value={searchQuery}
+            onChangeText={handleSearch}
+            icon={Search}
+            containerStyle={styles.searchInput}
+          />
+        </View>
 
-        <FlatList
-          data={gifs}
-          numColumns={2}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.gifGrid}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.gifItem}
-              onPress={() => selectGif(item)}
-            >
-              <Image
-                source={{ uri: item.images.fixed_height.url }}
-                style={styles.gifThumbnail}
-                resizeMode="cover"
-              />
-            </TouchableOpacity>
-          )}
-          refreshing={isLoading}
-          onRefresh={loadTrendingGifs}
-        />
+        {/* Content */}
+        {isLoading && gifs.length === 0 ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={mutedColor} />
+            <Text variant="caption" style={[styles.loadingText, { color: mutedColor }]}>
+              {searchQuery ? 'Searching GIFs...' : 'Loading trending GIFs...'}
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={gifs}
+            numColumns={2}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={[styles.gifGrid, { paddingBottom: insets.bottom + 16 }]}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.gifItem}
+                onPress={() => selectGif(item)}
+                activeOpacity={0.8}
+              >
+                <Image
+                  source={{ uri: item.images.fixed_height.url }}
+                  style={styles.gifThumbnail}
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
+            )}
+            ListEmptyComponent={
+              !isLoading ? (
+                <View style={styles.emptyContainer}>
+                  <Text variant="body" style={[styles.emptyText, { color: mutedColor }]}>
+                    {searchQuery ? 'No GIFs found for "' + searchQuery + '"' : 'No GIFs available'}
+                  </Text>
+                </View>
+              ) : null
+            }
+            refreshing={isLoading}
+            onRefresh={loadTrendingGifs}
+          />
+        )}
       </View>
     </Modal>
   );
@@ -121,31 +159,62 @@ export const GifPicker: React.FC<GifPickerProps> = ({ visible, onClose, onSelect
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'white',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    paddingTop: 60,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e5e5',
+  },
+  closeButton: {
+    marginRight: -8,
+  },
+  searchContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   searchInput: {
-    margin: 20,
+    marginBottom: 0,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 14,
   },
   gifGrid: {
-    padding: 10,
+    padding: 12,
+    gap: 8,
   },
   gifItem: {
     flex: 1,
-    margin: 5,
-    borderRadius: 8,
+    marginHorizontal: 4,
+    borderRadius: 12,
     overflow: 'hidden',
+    backgroundColor: '#f5f5f5',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   gifThumbnail: {
     width: '100%',
-    height: 120,
+    height: 140,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyText: {
+    textAlign: 'center',
+    fontSize: 16,
   },
 });

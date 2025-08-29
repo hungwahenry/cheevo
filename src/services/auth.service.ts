@@ -1,4 +1,3 @@
-
 import { supabase } from '@/lib/supabase';
 import { ApiResponse } from '@/src/types/api';
 import { Session, User } from '@supabase/supabase-js';
@@ -71,7 +70,7 @@ export class AuthService {
   /**
    * Verify OTP code
    */
-  static async verifyOTP(email: string, token: string): Promise<ApiResponse<{ user: User; session: Session; isNewUser: boolean }>> {
+  static async verifyOTP(email: string, token: string): Promise<ApiResponse<{ user: User; session: Session }>> {
     try {
       const { data, error } = await supabase.auth.verifyOtp({
         email: email.toLowerCase().trim(),
@@ -96,15 +95,11 @@ export class AuthService {
         return { success: false, error: 'Invalid verification code. Please try again' };
       }
 
-      // Check if this is a new user (created_at equals last_sign_in_at)
-      const isNewUser = data.user.created_at === data.user.last_sign_in_at;
-
       return { 
         success: true, 
         data: { 
           user: data.user, 
           session: data.session,
-          isNewUser 
         } 
       };
     } catch (error) {
@@ -115,45 +110,6 @@ export class AuthService {
     }
   }
 
-  /**
-   * Complete user onboarding with username and university (now uses user_profiles table)
-   */
-  static async completeOnboarding(username: string, universityId: number): Promise<ApiResponse<User>> {
-    try {
-      // Get current authenticated user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      if (userError || !user) {
-        return { success: false, error: 'Authentication session expired. Please sign in again' };
-      }
-
-      // Create user profile in our profiles table using the database function
-      const { error: profileError } = await supabase.rpc('create_user_profile', {
-        user_uuid: user.id,
-        username_param: username.trim(),
-        email_param: user.email || '',
-        university_id_param: universityId
-      });
-
-      if (profileError) {
-        // Enhanced error messages for profile creation
-        const errorMessage = profileError.message?.includes('username')
-          ? 'This username is already taken. Please choose a different one'
-          : profileError.message?.includes('foreign key')
-          ? 'Invalid university selection. Please try again'
-          : profileError.message || 'Failed to create profile';
-        
-        return { success: false, error: errorMessage };
-      }
-
-      return { success: true, data: user };
-    } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Failed to complete onboarding' 
-      };
-    }
-  }
 
   /**
    * Sign out current user
@@ -194,27 +150,4 @@ export class AuthService {
     }
   }
 
-  /**
-   * Check if username is available
-   */
-  static async checkUsernameAvailability(username: string): Promise<ApiResponse<boolean>> {
-    try {
-      const { data, error } = await supabase
-        .rpc('check_username_availability', { 
-          username_to_check: username.toLowerCase().trim() 
-        });
-
-      if (error) {
-        return { success: false, error: error.message };
-      }
-
-      return { success: true, data: data };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to check username availability'
-      };
-    }
   }
-
-}

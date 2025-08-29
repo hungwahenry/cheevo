@@ -1,6 +1,11 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 // Types
 interface GiphySearchRequest {
   query?: string;
@@ -37,77 +42,90 @@ interface GiphyServiceResponse {
   success: boolean;
   data?: GiphyGif[];
   error?: string;
+  timestamp: string;
 }
 
 serve(async (req) => {
-  // Handle CORS
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST',
-        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      },
-    });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
     // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Validate HTTP method
+    if (req.method !== 'POST') {
+      throw new Error('Only POST method is allowed');
+    }
+
+    // Get user from JWT for authentication (optional for this service)
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('Missing authorization header');
+    }
+
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    );
+
+    if (userError || !user) {
+      throw new Error('Invalid or expired token');
+    }
 
     // Get Giphy API key
     const giphyApiKey = Deno.env.get('GIPHY_API_KEY');
     if (!giphyApiKey) {
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Giphy API key not configured'
-      }), { 
-        status: 500,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
+      throw new Error('Giphy API key not configured');
     }
 
-    // Parse request
-    if (req.method !== 'POST') {
-      return new Response('Method not allowed', { status: 405 });
+    // Parse request body
+    const requestBody: GiphySearchRequest = await req.json();
+    const { query, limit = 20, offset = 0, type, gifId } = requestBody;
+
+    // Validate required parameters
+    if (!type) {
+      throw new Error('Request type is required (search, trending, or getById)');
     }
 
-    const { query, limit = 20, offset = 0, type, gifId }: GiphySearchRequest = await req.json();
+    // Validate limit and offset
+    if (limit < 1 || limit > 50) {
+      throw new Error('Limit must be between 1 and 50');
+    }
+    if (offset < 0) {
+      throw new Error('Offset must be non-negative');
+    }
 
     // Check if GIF feature is enabled
-    const { data: featureFlag } = await supabase
+    const { data: featureFlag } = await supabaseClient
       .from('app_config')
       .select('value')
       .eq('key', 'enable_gifs')
       .single();
 
     if (!featureFlag?.value) {
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'GIF integration is currently disabled'
-      }), { 
-        status: 403,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
+      throw new Error('GIF integration is currently disabled');
     }
 
     const baseUrl = 'https://api.giphy.com/v1/gifs';
     let url: string;
     let params: URLSearchParams;
 
+    // Validate request type
+    const validTypes = ['search', 'trending', 'getById'];
+    if (!validTypes.includes(type)) {
+      throw new Error(`Invalid request type: ${type}. Valid options: ${validTypes.join(', ')}`);
+    }
+
     // Build URL based on request type
     switch (type) {
       case 'search':
         if (!query?.trim()) {
-          return new Response(JSON.stringify({
-            success: false,
-            error: 'Search query cannot be empty'
-          }), { 
-            status: 400,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-          });
+          throw new Error('Search query cannot be empty for search requests');
         }
         
         params = new URLSearchParams({
@@ -115,7 +133,7 @@ serve(async (req) => {
           q: query.trim(),
           limit: Math.min(limit, 50).toString(),
           offset: offset.toString(),
-          rating: 'pg-13',
+          rating: 'r',
           lang: 'en'
         });
         url = `${baseUrl}/search?${params}`;
@@ -133,13 +151,7 @@ serve(async (req) => {
 
       case 'getById':
         if (!gifId?.trim()) {
-          return new Response(JSON.stringify({
-            success: false,
-            error: 'GIF ID cannot be empty'
-          }), { 
-            status: 400,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-          });
+          throw new Error('GIF ID cannot be empty for getById requests');
         }
         
         params = new URLSearchParams({
@@ -149,13 +161,7 @@ serve(async (req) => {
         break;
 
       default:
-        return new Response(JSON.stringify({
-          success: false,
-          error: 'Invalid request type'
-        }), { 
-          status: 400,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-        });
+        throw new Error(`Invalid request type: ${type}`);
     }
 
     // Call Giphy API
@@ -167,14 +173,9 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
-      console.error(`Giphy API error: ${response.status} ${response.statusText}`);
-      return new Response(JSON.stringify({
-        success: false,
-        error: `Giphy API error: ${response.status} ${response.statusText}`
-      }), { 
-        status: 500,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
+      const errorText = await response.text();
+      console.error(`Giphy API error: ${response.status} ${response.statusText}`, errorText);
+      throw new Error(`Giphy API error: ${response.status} ${response.statusText}`);
     }
 
     const result = await response.json();
@@ -184,24 +185,48 @@ serve(async (req) => {
 
     const serviceResponse: GiphyServiceResponse = {
       success: true,
-      data: data
+      data: data,
+      timestamp: new Date().toISOString()
     };
 
-    return new Response(JSON.stringify(serviceResponse), {
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
+    return Response.json(serviceResponse, {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
   } catch (error) {
-    console.error('Giphy function error:', error);
-    return new Response(JSON.stringify({
+    console.error('Giphy function error:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Determine appropriate status code based on error type
+    let statusCode = 500;
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    
+    if (errorMessage.includes('Request type is required') || 
+        errorMessage.includes('Search query cannot be empty') ||
+        errorMessage.includes('GIF ID cannot be empty') ||
+        errorMessage.includes('Invalid request type') ||
+        errorMessage.includes('Limit must be') ||
+        errorMessage.includes('Offset must be')) {
+      statusCode = 400;
+    } else if (errorMessage.includes('Invalid or expired token') || 
+               errorMessage.includes('Missing authorization header')) {
+      statusCode = 401;
+    } else if (errorMessage.includes('GIF integration is currently disabled')) {
+      statusCode = 403;
+    }
+
+    const errorResponse: GiphyServiceResponse = {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred'
-    }), { 
-      status: 500,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      error: errorMessage,
+      timestamp: new Date().toISOString()
+    };
+
+    return Response.json(errorResponse, { 
+      status: statusCode,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 });

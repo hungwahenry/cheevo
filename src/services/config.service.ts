@@ -36,8 +36,6 @@ class ConfigService {
         });
       }
 
-      // Note: Moderation configs now handled server-side in Edge Functions
-
       this.lastLoaded = new Date();
     } catch (error) {
       console.error('Error loading configurations:', error);
@@ -59,8 +57,6 @@ class ConfigService {
     return this.appConfigs.get(key) ?? defaultValue;
   }
 
-  // Moderation configs removed - now handled server-side
-
   // Convenience methods for commonly used configs
   async getContentLimits() {
     return {
@@ -70,8 +66,6 @@ class ConfigService {
       commentThreadDepth: await this.getAppConfig('comment_thread_depth', 3),
     };
   }
-
-  // Ban escalation settings removed - no longer used client-side
 
   async getFeatureFlags() {
     return {

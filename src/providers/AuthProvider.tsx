@@ -20,7 +20,7 @@ type AuthAction =
 type AuthContextType = {
   state: AuthState;
   sendOTP: (email: string) => Promise<boolean>;
-  verifyOTP: (email: string, code: string) => Promise<{ success: boolean; isNewUser?: boolean }>;
+  verifyOTP: (email: string, code: string) => Promise<{ success: boolean;}>;
   completeOnboarding: (data: OnboardingData) => Promise<boolean>;
   signOut: () => Promise<void>;
   clearError: () => void;
@@ -178,7 +178,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   // Verify OTP
-  const verifyOTP = async (email: string, code: string): Promise<{ success: boolean; isNewUser?: boolean }> => {
+  const verifyOTP = async (email: string, code: string): Promise<{ success: boolean }> => {
     dispatch({ type: 'SET_LOADING', payload: true });
     dispatch({ type: 'CLEAR_ERROR' });
 
@@ -198,7 +198,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         dispatch({ type: 'SET_LOADING', payload: false });
       }
       
-      return { success: true, isNewUser: result.data.isNewUser };
+      return { success: true };
     } else {
       dispatch({ type: 'SET_ERROR', payload: result.error });
       return { success: false };
@@ -210,19 +210,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     dispatch({ type: 'SET_LOADING', payload: true });
     dispatch({ type: 'CLEAR_ERROR' });
 
-    const result = await AuthService.completeOnboarding(data.username, data.universityId);
+    const result = await userProfileService.createUserProfile(data.username, data.universityId);
     
     if (result.success) {
-      // Load the newly created user profile
-      const profileResult = await userProfileService.getUserProfile(result.data.id);
-      
-      if (profileResult.success && profileResult.data) {
-        dispatch({ type: 'SET_USER_PROFILE', payload: profileResult.data });
-        return true;
-      } else {
-        dispatch({ type: 'SET_ERROR', payload: 'Failed to load user profile after onboarding' });
-        return false;
-      }
+      dispatch({ type: 'SET_USER_PROFILE', payload: result.data });
+      return true;
     } else {
       dispatch({ type: 'SET_ERROR', payload: result.error });
       return false;
@@ -243,7 +235,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Check username availability
   const checkUsernameAvailability = async (username: string): Promise<ApiResponse<boolean>> => {
-    return await AuthService.checkUsernameAvailability(username);
+    return await userProfileService.checkUsernameAvailability(username);
   };
 
   const contextValue: AuthContextType = {

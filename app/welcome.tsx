@@ -5,7 +5,7 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
-import { Dimensions, StyleSheet } from 'react-native';
+import { Dimensions, Image, StyleSheet } from 'react-native'; // Import Image
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -55,14 +55,12 @@ export default function WelcomeScreen() {
       <View style={[styles.container, { backgroundColor, paddingTop: insets.top }]}>
         {/* Logo Section */}
         <Animated.View style={[styles.logoSection, logoAnimatedStyle]}>
-          <View style={[styles.logo, { backgroundColor: primaryColor }]}>
-            <Text variant="heading" style={styles.logoText}>
-              C
-            </Text>
-          </View>
-          <Text variant="title" style={styles.appName}>
-            cheevo
-          </Text>
+          {/* Replaced Text and View with Image */}
+          <Image 
+            source={require('@/assets/images/logo.png')} // Adjust the path if necessary
+            style={styles.logoImage} 
+            resizeMode="contain"
+          />
         </Animated.View>
 
         {/* Content Section */}
@@ -128,29 +126,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logo: {
-    width: 100,
-    height: 100,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
+  // New style for the image
+  logoImage: {
+    width: 200, // Adjust width as needed for your logo
+    height: 100, // Adjust height as needed
     marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 10,
-  },
-  logoText: {
-    color: 'white',
-    fontSize: 44,
-    fontWeight: '800',
-  },
-  appName: {
-    fontWeight: '700',
   },
   contentSection: {
     flex: 3,
