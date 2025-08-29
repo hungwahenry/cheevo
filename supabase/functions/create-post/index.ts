@@ -14,10 +14,6 @@ interface CreatePostResponse {
   status: 'published' | 'pending_review' | 'rejected';
   message: string;
   postId?: number;
-  banInfo?: {
-    shouldBanUser: boolean;
-    banDuration?: number;
-  };
 }
 
 serve(async (req) => {
@@ -58,33 +54,7 @@ serve(async (req) => {
 
     console.log(`Creating post for user ${userId} at university ${universityId}`);
 
-    // Check if user is banned
-    const { data: activeBans, error: banError } = await supabase
-      .from('user_bans')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .or('expires_at.is.null,expires_at.gt.now()')
-      .order('created_at', { ascending: false })
-      .limit(1);
-
-    if (banError) {
-      console.error('Error checking user ban status:', banError);
-    } else if (activeBans && activeBans.length > 0) {
-      const ban = activeBans[0];
-      const message = ban.ban_type === 'permanent_ban' 
-        ? 'Your account has been permanently banned'
-        : `Your account is temporarily banned until ${ban.expires_at}`;
-        
-      return new Response(JSON.stringify({
-        success: false,
-        status: 'rejected',
-        message
-      }), { 
-        status: 403,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      });
-    }
+    // Note: User ban checking moved to manual reporting system
 
     // Get post content limits from config
     const { data: maxLengthConfig } = await supabase
@@ -180,16 +150,27 @@ serve(async (req) => {
     let responseMessage: string;
 
     if (moderationResult.action === 'approved') {
-      // Publish the post
+      // Publish the post with moderation score
       await supabase
         .from('posts')
-        .update({ is_flagged: false })
+        .update({ 
+          is_flagged: false,
+          moderation_score: moderationResult.openaiResponse
+        })
         .eq('id', postId);
       
       postStatus = 'published';
       responseMessage = 'Post published successfully';
     } else if (moderationResult.action === 'manual_review') {
-      // Keep flagged for manual review
+      // Keep flagged for manual review with moderation score
+      await supabase
+        .from('posts')
+        .update({ 
+          is_flagged: true,
+          moderation_score: moderationResult.openaiResponse
+        })
+        .eq('id', postId);
+        
       postStatus = 'pending_review';
       responseMessage = 'Post created but requires review before publishing';
     } else {
@@ -209,14 +190,6 @@ serve(async (req) => {
       message: responseMessage,
       postId: postStatus !== 'rejected' ? postId : undefined
     };
-
-    // Include ban info if user should be banned
-    if (moderationResult.shouldBanUser) {
-      response.banInfo = {
-        shouldBanUser: true,
-        banDuration: moderationResult.banDuration
-      };
-    }
 
     return new Response(JSON.stringify(response), {
       headers: {

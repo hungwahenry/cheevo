@@ -1,6 +1,5 @@
 import { useContext } from 'react';
 import { AuthContext } from '@/src/providers/AuthProvider';
-import { AuthState, UserProfile, OnboardingData } from '@/src/types/user';
 
 /**
  * Custom hook for authentication state and actions
@@ -27,7 +26,8 @@ export const useAuth = () => {
     // State
     isAuthenticated: state.isAuthenticated,
     isLoading: state.isLoading,
-    user: state.user,
+    authUser: state.authUser,
+    userProfile: state.userProfile,
     hasCompletedOnboarding: state.hasCompletedOnboarding,
     error: state.error,
 
@@ -39,10 +39,10 @@ export const useAuth = () => {
     clearError,
     checkUsernameAvailability,
 
-    // Computed values
-    isNewUser: state.user && !state.hasCompletedOnboarding,
-    userEmail: state.user?.email || null,
-    username: state.user?.username || null,
-    universityId: state.user?.universityId || null,
+    // Computed values  
+    isNewUser: state.isAuthenticated && !state.hasCompletedOnboarding,
+    userEmail: state.authUser?.email || null,
+    username: state.userProfile?.username || null,
+    universityId: state.userProfile?.universityId || null,
   };
 };

@@ -52,14 +52,7 @@ function CreateScreen() {
         Alert.alert('Under Review', result.message);
       }
       
-      // Handle ban info if present
-      if (result.banInfo?.shouldBanUser) {
-        Alert.alert(
-          'Account Status', 
-          `Your account has been restricted for ${result.banInfo.banDuration} days due to policy violations.`,
-          [{ text: 'OK' }]
-        );
-      }
+      // Note: Ban handling removed - now handled through manual reporting system
       
       // Reset form and go back
       setContent('');
@@ -77,6 +70,9 @@ function CreateScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text variant="title">Create Post</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.cancelButton}>
+          <X size={24} color="#666" />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.content}>
@@ -154,10 +150,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 20,
     paddingTop: 60, // Account for status bar
     borderBottomWidth: 1,
     borderBottomColor: '#e5e5e5',
+  },
+  cancelButton: {
+    padding: 4,
   },
   content: {
     flex: 1,

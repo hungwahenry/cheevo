@@ -1,30 +1,30 @@
-import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import { View } from '@/components/ui/view';
+import { useThemeColor } from '@/hooks/useThemeColor';
 import { useAuth } from '@/src/hooks/useAuth';
 import { useUniversities } from '@/src/hooks/useUniversities';
-import { validation } from '@/src/utils/validation';
 import { debounce } from '@/src/utils/helpers';
-import { useThemeColor } from '@/hooks/useThemeColor';
+import { validation } from '@/src/utils/validation';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { 
-  StyleSheet, 
-  Dimensions, 
-  FlatList, 
-  Pressable,
+import { Loader2, Search, User } from 'lucide-react-native';
+import React, { useState } from 'react';
+import {
+  Dimensions,
+  FlatList,
   KeyboardAvoidingView,
-  Platform 
+  Platform,
+  Pressable,
+  StyleSheet
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { User, Search, Loader2 } from 'lucide-react-native';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 
@@ -167,7 +167,7 @@ export default function OnboardingScreen() {
     });
 
     if (success) {
-      router.replace('/(tabs)');
+      router.replace('/');
     }
   };
 

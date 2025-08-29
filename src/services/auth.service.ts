@@ -1,7 +1,6 @@
 
 import { supabase } from '@/lib/supabase';
 import { ApiResponse } from '@/src/types/api';
-import { UserProfile } from '@/src/types/user';
 import { Session, User } from '@supabase/supabase-js';
 
 export class AuthService {
@@ -26,6 +25,18 @@ export class AuthService {
   }
 
   /**
+   * Validate current session is still active
+   */
+  static async validateSession(): Promise<boolean> {
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      return !error && !!user;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Send OTP to email address
    */
   static async sendOTP(email: string): Promise<ApiResponse<void>> {
@@ -38,7 +49,14 @@ export class AuthService {
       });
 
       if (error) {
-        return { success: false, error: error.message };
+        // Enhanced error messages for better UX
+        const errorMessage = error.message?.includes('rate limit') 
+          ? 'Too many emails sent. Please wait before trying again'
+          : error.message?.includes('email_address_invalid')
+          ? 'Please enter a valid email address'
+          : error.message || 'Failed to send verification code';
+        
+        return { success: false, error: errorMessage };
       }
 
       return { success: true, data: undefined };
@@ -62,11 +80,20 @@ export class AuthService {
       });
 
       if (error) {
-        return { success: false, error: error.message };
+        // Enhanced error messages for OTP verification
+        const errorMessage = error.message?.includes('otp_expired')
+          ? 'Verification code has expired. Please request a new one'
+          : error.message?.includes('invalid_credentials')
+          ? 'The verification code you entered is incorrect'
+          : error.message?.includes('email_not_confirmed')
+          ? 'Please verify your email address first'
+          : error.message || 'Failed to verify code';
+        
+        return { success: false, error: errorMessage };
       }
 
       if (!data.user || !data.session) {
-        return { success: false, error: 'Invalid OTP code' };
+        return { success: false, error: 'Invalid verification code. Please try again' };
       }
 
       // Check if this is a new user (created_at equals last_sign_in_at)
@@ -89,28 +116,37 @@ export class AuthService {
   }
 
   /**
-   * Complete user onboarding with username and university
+   * Complete user onboarding with username and university (now uses user_profiles table)
    */
   static async completeOnboarding(username: string, universityId: number): Promise<ApiResponse<User>> {
     try {
-      const { data, error } = await supabase.auth.updateUser({
-        data: {
-          username: username.trim(),
-          university_id: universityId,
-          onboarding_completed: true,
-          onboarding_completed_at: new Date().toISOString(),
-        }
+      // Get current authenticated user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        return { success: false, error: 'Authentication session expired. Please sign in again' };
+      }
+
+      // Create user profile in our profiles table using the database function
+      const { error: profileError } = await supabase.rpc('create_user_profile', {
+        user_uuid: user.id,
+        username_param: username.trim(),
+        email_param: user.email || '',
+        university_id_param: universityId
       });
 
-      if (error) {
-        return { success: false, error: error.message };
+      if (profileError) {
+        // Enhanced error messages for profile creation
+        const errorMessage = profileError.message?.includes('username')
+          ? 'This username is already taken. Please choose a different one'
+          : profileError.message?.includes('foreign key')
+          ? 'Invalid university selection. Please try again'
+          : profileError.message || 'Failed to create profile';
+        
+        return { success: false, error: errorMessage };
       }
 
-      if (!data.user) {
-        return { success: false, error: 'Failed to update user profile' };
-      }
-
-      return { success: true, data: data.user };
+      return { success: true, data: user };
     } catch (error) {
       return { 
         success: false, 
@@ -140,22 +176,22 @@ export class AuthService {
   }
 
   /**
-   * Check if user has completed onboarding
+   * Check if user has completed onboarding (now uses user_profiles table)
    */
-  static hasCompletedOnboarding(user: User | UserProfile | null): boolean {
-    // Handle User type (from Supabase)
-    if (user && 'user_metadata' in user) {
-      if (!user?.user_metadata) return false;
-      const { username, university_id, onboarding_completed } = user.user_metadata;
-      return !!(username && university_id && onboarding_completed);
+  static async hasCompletedOnboarding(userId: string): Promise<boolean> {
+    try {
+      const { data: profile, error } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('id', userId)
+        .single();
+      
+      // If profile exists, onboarding is complete
+      return !error && !!profile;
+    } catch (error) {
+      console.error('Error checking onboarding status:', error);
+      return false;
     }
-    
-    // Handle UserProfile type (from our app)
-    if (user && 'onboardingCompleted' in user) {
-      return !!(user.username && user.universityId && user.onboardingCompleted);
-    }
-    
-    return false;
   }
 
   /**
@@ -181,20 +217,4 @@ export class AuthService {
     }
   }
 
-  /**
-   * Get user profile from metadata
-   */
-  static getUserProfile(user: User | null): UserProfile | null {
-    if (!user?.user_metadata) return null;
-
-    return {
-      id: user.id,
-      email: user.email || '',
-      username: user.user_metadata.username || '',
-
-      universityId: user.user_metadata.university_id || null,
-      onboardingCompleted: user.user_metadata.onboarding_completed || false,
-      createdAt: user.created_at || '',
-    };
-  }
 }

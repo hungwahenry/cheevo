@@ -6,8 +6,6 @@ export interface ModerationResult {
   action: 'approved' | 'removed' | 'manual_review';
   violations: string[];
   openaiResponse?: any;
-  shouldBanUser?: boolean;
-  banDuration?: number;
 }
 
 class ModerationService {
@@ -19,7 +17,7 @@ class ModerationService {
     userId: string
   ): Promise<ModerationResult> {
     try {
-      // Call Edge Function for server-side moderation
+      // Call Edge Function for server-side content filtering
       const { data, error } = await supabase.functions.invoke('moderate-content', {
         body: {
           content,
@@ -30,11 +28,11 @@ class ModerationService {
       });
 
       if (error) {
-        console.error('Edge Function error:', error);
-        // Return safe default on error
+        console.error('Moderation Edge Function error:', error);
+        // Return safe default on error - allow through for manual review
         return {
           approved: false,
-          flagged: false,
+          flagged: true,
           action: 'manual_review',
           violations: [],
         };
@@ -45,16 +43,15 @@ class ModerationService {
     } catch (error) {
       console.error('Error calling moderation Edge Function:', error);
       
-      // Return safe default on error
+      // Return safe default on error - allow through for manual review
       return {
         approved: false,
-        flagged: false,
+        flagged: true,
         action: 'manual_review',
         violations: [],
       };
     }
   }
-
 
   async checkUserBanStatus(userId: string): Promise<{
     isBanned: boolean;

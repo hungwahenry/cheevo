@@ -1,4 +1,3 @@
-
 export type Json =
   | string
   | number
@@ -12,31 +11,6 @@ export type Database = {
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "13.0.4"
-  }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
   }
   public: {
     Tables: {
@@ -436,6 +410,62 @@ export type Database = {
         }
         Relationships: []
       }
+      user_profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          comments_count: number | null
+          created_at: string
+          email: string
+          id: string
+          posts_count: number | null
+          reactions_received: number | null
+          total_views: number | null
+          trending_score: number | null
+          university_id: number
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          comments_count?: number | null
+          created_at?: string
+          email: string
+          id: string
+          posts_count?: number | null
+          reactions_received?: number | null
+          total_views?: number | null
+          trending_score?: number | null
+          university_id: number
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          comments_count?: number | null
+          created_at?: string
+          email?: string
+          id?: string
+          posts_count?: number | null
+          reactions_received?: number | null
+          total_views?: number | null
+          trending_score?: number | null
+          university_id?: number
+          updated_at?: string
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_profiles_university_id_fkey"
+            columns: ["university_id"]
+            isOneToOne: false
+            referencedRelation: "universities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -445,8 +475,21 @@ export type Database = {
         Args: { username_to_check: string }
         Returns: boolean
       }
+      create_user_profile: {
+        Args: {
+          email_param: string
+          university_id_param: number
+          user_uuid: string
+          username_param: string
+        }
+        Returns: undefined
+      }
       expire_user_bans: {
         Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      update_user_stats: {
+        Args: { user_uuid: string }
         Returns: undefined
       }
     }
@@ -580,9 +623,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       ban_type: ["shadow_ban", "permanent_ban"],

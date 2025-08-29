@@ -12,10 +12,6 @@ export interface CreatePostResponse {
   status: 'published' | 'pending_review' | 'rejected';
   message: string;
   postId?: number;
-  banInfo?: {
-    shouldBanUser: boolean;
-    banDuration?: number;
-  };
 }
 
 class PostService {

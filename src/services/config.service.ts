@@ -1,11 +1,7 @@
 import { supabase } from '@/lib/supabase';
-import { Database } from '@/src/types/database.generated';
-
-type ModerationConfig = Database['public']['Tables']['moderation_config']['Row'];
 
 class ConfigService {
   private appConfigs: Map<string, any> = new Map();
-  private moderationConfigs: Map<string, ModerationConfig> = new Map();
   private lastLoaded: Date | null = null;
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
@@ -40,19 +36,7 @@ class ConfigService {
         });
       }
 
-      // Load moderation configs
-      const { data: moderationConfigs, error: modError } = await supabase
-        .from('moderation_config')
-        .select('*');
-
-      if (modError) {
-        console.error('Error loading moderation config:', modError);
-      } else {
-        this.moderationConfigs.clear();
-        moderationConfigs?.forEach(config => {
-          this.moderationConfigs.set(config.category, config);
-        });
-      }
+      // Note: Moderation configs now handled server-side in Edge Functions
 
       this.lastLoaded = new Date();
     } catch (error) {
@@ -75,15 +59,7 @@ class ConfigService {
     return this.appConfigs.get(key) ?? defaultValue;
   }
 
-  async getModerationConfig(category: string): Promise<ModerationConfig | null> {
-    await this.ensureConfigsLoaded();
-    return this.moderationConfigs.get(category) || null;
-  }
-
-  async getAllModerationConfigs(): Promise<ModerationConfig[]> {
-    await this.ensureConfigsLoaded();
-    return Array.from(this.moderationConfigs.values());
-  }
+  // Moderation configs removed - now handled server-side
 
   // Convenience methods for commonly used configs
   async getContentLimits() {
@@ -95,16 +71,7 @@ class ConfigService {
     };
   }
 
-  async getBanEscalationSettings() {
-    return {
-      firstBanDays: await this.getAppConfig('first_ban_days', 7),
-      secondBanDays: await this.getAppConfig('second_ban_days', 14),
-      thirdBanDays: await this.getAppConfig('third_ban_days', 28),
-      fourthBanDays: await this.getAppConfig('fourth_ban_days', 56),
-      maxBanDays: await this.getAppConfig('max_ban_days', 180),
-      banEscalationResetDays: await this.getAppConfig('ban_escalation_reset_days', 90),
-    };
-  }
+  // Ban escalation settings removed - no longer used client-side
 
   async getFeatureFlags() {
     return {

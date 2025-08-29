@@ -9,8 +9,7 @@ import {
   Modal, 
   FlatList, 
   TouchableOpacity, 
-  Image,
-  ModalProps 
+  Image
 } from 'react-native';
 
 interface GifPickerProps {

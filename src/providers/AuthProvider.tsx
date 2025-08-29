@@ -2,14 +2,16 @@ import React, { createContext, useReducer, useEffect, ReactNode } from 'react';
 import { Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { AuthService } from '@/src/services/auth.service';
-import { AuthState, UserProfile, OnboardingData } from '@/src/types/user';
+import { userProfileService } from '@/src/services/user-profile.service';
+import { AuthState, UserProfile, OnboardingData, AuthUser } from '@/src/types/user';
 import { ApiResponse } from '@/src/types/api';
 
 // Action types
 type AuthAction = 
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
-  | { type: 'SET_USER'; payload: UserProfile | null }
+  | { type: 'SET_AUTH_USER'; payload: AuthUser | null }
+  | { type: 'SET_USER_PROFILE'; payload: UserProfile | null }
   | { type: 'SET_AUTHENTICATED'; payload: boolean }
   | { type: 'CLEAR_ERROR' }
   | { type: 'RESET_STATE' };
@@ -29,7 +31,8 @@ type AuthContextType = {
 const initialState: AuthState = {
   isAuthenticated: false,
   isLoading: true,
-  user: null,
+  authUser: null,
+  userProfile: null,
   hasCompletedOnboarding: false,
   error: null,
 };
@@ -41,12 +44,19 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
       return { ...state, isLoading: action.payload };
     case 'SET_ERROR':
       return { ...state, error: action.payload, isLoading: false };
-    case 'SET_USER':
+    case 'SET_AUTH_USER':
       return {
         ...state,
-        user: action.payload,
+        authUser: action.payload,
         isAuthenticated: !!action.payload,
-        hasCompletedOnboarding: action.payload ? AuthService.hasCompletedOnboarding(action.payload) : false,
+        isLoading: false,
+        error: null,
+      };
+    case 'SET_USER_PROFILE':
+      return {
+        ...state,
+        userProfile: action.payload,
+        hasCompletedOnboarding: !!action.payload,
         isLoading: false,
         error: null,
       };
@@ -75,6 +85,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Initialize auth state on mount
   useEffect(() => {
     let mounted = true;
+    let isInitializing = true;
 
     const initializeAuth = async () => {
       try {
@@ -83,27 +94,61 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (!mounted) return;
 
         if (sessionResult.success && sessionResult.data?.user) {
-          const userProfile = AuthService.getUserProfile(sessionResult.data.user);
-          dispatch({ type: 'SET_USER', payload: userProfile });
+          // Try to load user profile from database
+          const profileResult = await userProfileService.getUserProfile(sessionResult.data.user.id);
+          
+          if (profileResult.success && profileResult.data) {
+            dispatch({ type: 'SET_AUTH_USER', payload: { id: sessionResult.data.user.id, email: sessionResult.data.user.email!, createdAt: sessionResult.data.user.created_at } });
+            dispatch({ type: 'SET_USER_PROFILE', payload: profileResult.data });
+          } else {
+            // Check if the auth user actually exists by trying to get user again
+            const { data: { user }, error: userError } = await supabase.auth.getUser();
+            
+            if (userError || !user) {
+              await AuthService.signOut();
+              dispatch({ type: 'RESET_STATE' });
+            } else {
+              dispatch({ type: 'SET_AUTH_USER', payload: { id: user.id, email: user.email!, createdAt: user.created_at } });
+              dispatch({ type: 'SET_USER_PROFILE', payload: null });
+              dispatch({ type: 'SET_LOADING', payload: false });
+            }
+          }
         } else {
           dispatch({ type: 'SET_LOADING', payload: false });
         }
       } catch (error) {
+        console.error('Auth initialization error:', error);
         if (!mounted) return;
         dispatch({ type: 'SET_ERROR', payload: 'Failed to initialize authentication' });
       }
     };
 
-    initializeAuth();
+    initializeAuth().finally(() => {
+      isInitializing = false;
+    });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event: AuthChangeEvent, session: Session | null) => {
+      async (event: AuthChangeEvent, session: Session | null) => {
         if (!mounted) return;
 
+        // Skip handling INITIAL_SESSION and SIGNED_IN during initialization to prevent race conditions
+        if (isInitializing && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN')) {
+          return;
+        }
+
         if (session?.user) {
-          const userProfile = AuthService.getUserProfile(session.user);
-          dispatch({ type: 'SET_USER', payload: userProfile });
+          // Try to load user profile from database
+          const profileResult = await userProfileService.getUserProfile(session.user.id);
+          
+          if (profileResult.success && profileResult.data) {
+            dispatch({ type: 'SET_AUTH_USER', payload: { id: session.user.id, email: session.user.email!, createdAt: session.user.created_at } });
+            dispatch({ type: 'SET_USER_PROFILE', payload: profileResult.data });
+          } else {
+            // User exists but no profile = onboarding not completed
+            dispatch({ type: 'SET_AUTH_USER', payload: { id: session.user.id, email: session.user.email!, createdAt: session.user.created_at } });
+            dispatch({ type: 'SET_USER_PROFILE', payload: null });
+          }
         } else {
           dispatch({ type: 'RESET_STATE' });
         }
@@ -140,8 +185,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const result = await AuthService.verifyOTP(email, code);
     
     if (result.success) {
-      const userProfile = AuthService.getUserProfile(result.data.user);
-      dispatch({ type: 'SET_USER', payload: userProfile });
+      // Try to load user profile from database
+      const profileResult = await userProfileService.getUserProfile(result.data.user.id);
+      
+      if (profileResult.success && profileResult.data) {
+        dispatch({ type: 'SET_AUTH_USER', payload: { id: result.data.user.id, email: result.data.user.email!, createdAt: result.data.user.created_at } });
+        dispatch({ type: 'SET_USER_PROFILE', payload: profileResult.data });
+      } else {
+        // User exists but no profile = onboarding not completed
+        dispatch({ type: 'SET_AUTH_USER', payload: { id: result.data.user.id, email: result.data.user.email!, createdAt: result.data.user.created_at } });
+        dispatch({ type: 'SET_USER_PROFILE', payload: null });
+        dispatch({ type: 'SET_LOADING', payload: false });
+      }
+      
       return { success: true, isNewUser: result.data.isNewUser };
     } else {
       dispatch({ type: 'SET_ERROR', payload: result.error });
@@ -157,9 +213,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const result = await AuthService.completeOnboarding(data.username, data.universityId);
     
     if (result.success) {
-      const userProfile = AuthService.getUserProfile(result.data);
-      dispatch({ type: 'SET_USER', payload: userProfile });
-      return true;
+      // Load the newly created user profile
+      const profileResult = await userProfileService.getUserProfile(result.data.id);
+      
+      if (profileResult.success && profileResult.data) {
+        dispatch({ type: 'SET_USER_PROFILE', payload: profileResult.data });
+        return true;
+      } else {
+        dispatch({ type: 'SET_ERROR', payload: 'Failed to load user profile after onboarding' });
+        return false;
+      }
     } else {
       dispatch({ type: 'SET_ERROR', payload: result.error });
       return false;

@@ -1,13 +1,40 @@
 /**
- * User profile data structure
+ * Basic auth user info (always available when authenticated)
+ */
+export type AuthUser = {
+  id: string;
+  email: string;
+  createdAt: string;
+};
+
+/**
+ * User profile data structure (from user_profiles table when onboarding complete)
  */
 export type UserProfile = {
   id: string;
   email: string;
   username: string;
-  universityId: number | null;
-  onboardingCompleted: boolean;
+  universityId: number;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  
+  // Cached stats
+  postsCount: number;
+  reactionsReceived: number;
+  commentsCount: number;
+  totalViews: number;
+  trendingScore: number;
+  
+  // University info (joined)
+  university?: {
+    id: number;
+    name: string;
+    shortName: string | null;
+    state: string;
+  };
+  
   createdAt: string;
+  updatedAt: string;
 };
 
 /**
@@ -16,7 +43,8 @@ export type UserProfile = {
 export type AuthState = {
   isAuthenticated: boolean;
   isLoading: boolean;
-  user: UserProfile | null;
+  authUser: AuthUser | null;  // Basic user info (always available when authenticated)
+  userProfile: UserProfile | null;  // Full profile (only when onboarding complete)
   hasCompletedOnboarding: boolean;
   error: string | null;
 };
