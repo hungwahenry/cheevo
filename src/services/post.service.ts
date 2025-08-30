@@ -14,6 +14,13 @@ export interface CreatePostResponse {
   timestamp: string;
 }
 
+export interface ToggleReactionResponse {
+  success: boolean;
+  action?: 'added' | 'removed';
+  error?: string;
+  timestamp: string;
+}
+
 class PostService {
   async createPost(request: CreatePostRequest): Promise<CreatePostResponse> {
     try {
@@ -98,6 +105,64 @@ class PostService {
       return {
         success: false,
         status: 'rejected',
+        error: error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.',
+        timestamp: new Date().toISOString()
+      };
+    }
+  }
+
+  async toggleReaction(postId: number): Promise<ToggleReactionResponse> {
+    try {
+      // Get current session for authentication
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        return {
+          success: false,
+          error: 'You must be logged in to react to posts',
+          timestamp: new Date().toISOString()
+        };
+      }
+
+      // Call Edge Function for secure reaction toggle
+      const { data, error } = await supabase.functions.invoke('toggle-reaction', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: {
+          postId
+        }
+      });
+
+      if (error) {
+        console.error('Reaction toggle Edge Function error:', error);
+        
+        let errorMessage = 'Failed to update reaction. Please try again.';
+        if (error.message?.includes('Missing authorization')) {
+          errorMessage = 'Authentication expired. Please sign in again.';
+        } else if (error.message?.includes('Post not found')) {
+          errorMessage = 'Post not found.';
+        } else if (error.message?.includes('Cannot react to flagged post')) {
+          errorMessage = 'Cannot react to this post.';
+        }
+
+        return {
+          success: false,
+          error: errorMessage,
+          timestamp: new Date().toISOString()
+        };
+      }
+
+      return {
+        success: data.success,
+        action: data.action,
+        timestamp: new Date().toISOString()
+      };
+
+    } catch (error) {
+      console.error('Unexpected error toggling reaction:', error);
+      return {
+        success: false,
         error: error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.',
         timestamp: new Date().toISOString()
       };

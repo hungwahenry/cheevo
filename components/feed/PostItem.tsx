@@ -22,10 +22,15 @@ export function PostItem({ post, showUniversity = false, onReaction, onComment, 
   const primaryColor = useThemeColor({}, 'primary');
   const { userProfile } = useAuth();
 
-  // Track post view when component mounts
+  // Track post view when component mounts and becomes visible
   useEffect(() => {
     if (onView) {
-      onView();
+      // Small delay to ensure the post is actually visible
+      const timer = setTimeout(() => {
+        onView();
+      }, 500);
+      
+      return () => clearTimeout(timer);
     }
   }, [onView]);
 
@@ -153,8 +158,6 @@ export function PostItem({ post, showUniversity = false, onReaction, onComment, 
 const styles = StyleSheet.create({
   postCard: {
     padding: 16,
-    marginHorizontal: 16,
-    marginVertical: 6,
     gap: 12,
   },
   postHeader: {

@@ -30,9 +30,20 @@ export function ProfileHeader({ profile, isOwnProfile = false, onEditPress }: Pr
         
         <View style={styles.userInfo}>
           <View style={styles.nameRow}>
-            <Text variant="heading" style={styles.username}>
-              @{profile.username || 'Unknown'}
-            </Text>
+            <View style={styles.nameWithTrending}>
+              <Text variant="heading" style={styles.username}>
+                @{profile.username || 'Unknown'}
+              </Text>
+              {profile.trendingScore && profile.trendingScore > 0 && (
+                <View style={[styles.trendingPill, { backgroundColor: useThemeColor({}, 'primary') }]}>
+                  <Text style={styles.trendingText}>
+                    🔥 {profile.trendingScore >= 1000 
+                      ? `${(profile.trendingScore / 1000).toFixed(1)}K` 
+                      : profile.trendingScore}
+                  </Text>
+                </View>
+              )}
+            </View>
             {isOwnProfile && (
               <Button 
                 variant="outline"
@@ -40,7 +51,6 @@ export function ProfileHeader({ profile, isOwnProfile = false, onEditPress }: Pr
                 icon={Edit3}
                 onPress={onEditPress}
                 style={styles.editButton}
-                label="Edit"
               />
             )}
           </View>
@@ -48,8 +58,8 @@ export function ProfileHeader({ profile, isOwnProfile = false, onEditPress }: Pr
           {profile.university && profile.university.name && (
             <View style={styles.universityRow}>
               <MapPin size={14} color={mutedColor} />
-              <Text style={[styles.universityText, { color: mutedColor }]}>
-                {profile.university.name}
+              <Text style={[styles.universityText, { color: mutedColor }]} numberOfLines={1}>
+                {profile.university.shortName || profile.university.name}
                 {profile.university.state && ` • ${profile.university.state}`}
               </Text>
             </View>
@@ -67,7 +77,7 @@ export function ProfileHeader({ profile, isOwnProfile = false, onEditPress }: Pr
         postsCount={profile.postsCount}
         reactionsReceived={profile.reactionsReceived}
         commentsCount={profile.commentsCount}
-        trendingScore={profile.trendingScore}
+        trendingScore={0}
         totalViews={profile.totalViews}
       />
     </View>
@@ -77,42 +87,61 @@ export function ProfileHeader({ profile, isOwnProfile = false, onEditPress }: Pr
 const styles = StyleSheet.create({
   container: {
     padding: 16,
-    borderRadius: 12,
-    margin: 16,
-    gap: 16,
+    borderRadius: 8,
+    marginHorizontal: 16,
+    marginVertical: 12,
+    gap: 12,
   },
   topSection: {
     flexDirection: 'row',
-    gap: 16,
+    gap: 12,
+    alignItems: 'center',
   },
   userInfo: {
     flex: 1,
-    gap: 8,
+    gap: 4,
   },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  nameWithTrending: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
   username: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
   },
+  trendingPill: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  trendingText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: 'white',
+  },
   editButton: {
-    paddingHorizontal: 12,
-    height: 32,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    height: 26,
   },
   universityRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
   universityText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
   },
   bio: {
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 18,
   },
 });

@@ -1,7 +1,7 @@
-import React from 'react';
-import { View } from '@/components/ui/view';
 import { Text } from '@/components/ui/text';
+import { View } from '@/components/ui/view';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import React from 'react';
 import { StyleSheet } from 'react-native';
 
 interface StatsRowProps {
@@ -41,14 +41,6 @@ export function StatsRow({
       <StatItem label="Likes" value={reactionsReceived || 0} />
       <StatItem label="Comments" value={commentsCount || 0} />
       <StatItem label="Views" value={totalViews || 0} />
-      
-      {trendingScore && trendingScore > 0 && (
-        <View style={[styles.trendingContainer, { borderColor: primaryColor }]}>
-          <Text style={[styles.trendingText, { color: primaryColor }]}>
-            Trending: {formatNumber(trendingScore)}
-          </Text>
-        </View>
-      )}
     </View>
   );
 }
@@ -57,7 +49,7 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 20,
+    justifyContent: 'space-around',
     paddingVertical: 8,
   },
   statItem: {
@@ -65,26 +57,12 @@ const styles = StyleSheet.create({
     minWidth: 50,
   },
   statValue: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    lineHeight: 20,
+    lineHeight: 18,
   },
   statLabel: {
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  trendingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: 4,
-    marginLeft: 8,
-  },
-  trendingText: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 11,
+    lineHeight: 14,
   },
 });

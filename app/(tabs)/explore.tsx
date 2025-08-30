@@ -2,15 +2,25 @@ import { Text } from '@/components/ui/text';
 import { View } from '@/components/ui/view';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { Globe } from 'lucide-react-native';
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AlgorithmSelector } from '@/components/feed/AlgorithmSelector';
+import { FeedList } from '@/components/feed/FeedList';
+import { FeedAlgorithm } from '@/src/services/feed.service';
+
+const GLOBAL_ALGORITHMS: FeedAlgorithm[] = ['trending', 'chronological', 'discovery'];
 
 export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
   const backgroundColor = useThemeColor({}, 'background');
-  const mutedColor = useThemeColor({}, 'textMuted');
   const primaryColor = useThemeColor({}, 'primary');
+  const [selectedAlgorithm, setSelectedAlgorithm] = useState<FeedAlgorithm>('trending');
+
+  const handleComment = (postId: number) => {
+    // TODO: Implement comment functionality
+    console.log('Comment on post:', postId);
+  };
 
   return (
     <View style={[styles.container, { backgroundColor }]}>
@@ -19,19 +29,23 @@ export default function ExploreScreen() {
           <Globe size={20} color={primaryColor} />
           <View style={styles.headerText}>
             <Text variant="title" style={styles.headerTitle}>Explore</Text>
+            <Text style={styles.subtitle}>Posts from all universities</Text>
           </View>
         </View>
       </View>
       
-      <View style={styles.content}>
-        <Globe size={48} color={mutedColor} />
-        <Text variant="heading" style={styles.placeholderText}>
-          Global Explore Feed will appear here
-        </Text>
-        <Text variant="body" style={[styles.subText, { color: mutedColor }]}>
-          Coming soon - posts from universities nationwide
-        </Text>
-      </View>
+      <AlgorithmSelector
+        selected={selectedAlgorithm}
+        onSelect={setSelectedAlgorithm}
+        algorithms={GLOBAL_ALGORITHMS}
+      />
+      
+      <FeedList
+        algorithm={selectedAlgorithm}
+        scope="global"
+        showUniversity={true}
+        onComment={handleComment}
+      />
     </View>
   );
 }
@@ -55,17 +69,8 @@ const styles = StyleSheet.create({
   headerTitle: {
     marginBottom: 2,
   },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-    gap: 16,
-  },
-  placeholderText: {
-    textAlign: 'center',
-  },
-  subText: {
-    textAlign: 'center',
+  subtitle: {
+    fontSize: 12,
+    opacity: 0.7,
   },
 });

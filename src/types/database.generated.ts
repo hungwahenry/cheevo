@@ -518,6 +518,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_post_trending: {
+        Args: { post_id_param: number }
+        Returns: undefined
+      }
       check_username_availability: {
         Args: { username_to_check: string }
         Returns: boolean

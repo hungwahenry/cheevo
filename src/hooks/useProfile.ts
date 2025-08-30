@@ -90,7 +90,7 @@ export const useProfile = (
     } finally {
       setIsLoading(false);
     }
-  }, [userId, isLoading]);
+  }, [userId]);
 
   // Load user posts
   const loadPosts = useCallback(async () => {
@@ -113,7 +113,7 @@ export const useProfile = (
     } finally {
       setIsLoadingPosts(false);
     }
-  }, [userId, isLoadingPosts]);
+  }, [userId]);
 
   // Load user comments
   const loadComments = useCallback(async () => {
@@ -136,7 +136,7 @@ export const useProfile = (
     } finally {
       setIsLoadingComments(false);
     }
-  }, [userId, isLoadingComments]);
+  }, [userId]);
 
   // Load user likes
   const loadLikes = useCallback(async () => {
@@ -159,7 +159,7 @@ export const useProfile = (
     } finally {
       setIsLoadingLikes(false);
     }
-  }, [userId, isLoadingLikes]);
+  }, [userId]);
 
   // Refresh all data
   const refresh = useCallback(async () => {

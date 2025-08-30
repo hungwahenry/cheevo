@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FlatList, RefreshControl, Image } from 'react-native';
+import { Image } from 'react-native';
 import { View } from '@/components/ui/view';
 import { Text } from '@/components/ui/text';
 import { Card } from '@/components/ui/card';
@@ -148,21 +148,17 @@ export function UserLikesList({ userId }: UserLikesListProps) {
   }
 
   return (
-    <FlatList
-      data={likes}
-      renderItem={LikedPostItem}
-      keyExtractor={(item) => item.id}
-      style={[styles.list, { backgroundColor }]}
-      contentContainerStyle={styles.listContent}
-      ListEmptyComponent={EmptyState}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={() => fetchLikes(true)}
-        />
-      }
-      showsVerticalScrollIndicator={false}
-    />
+    <View style={[styles.list, { backgroundColor }]}>
+      <View style={styles.listContent}>
+        {likes.length === 0 && !loading ? (
+          <EmptyState />
+        ) : (
+          likes.map((item) => (
+            <LikedPostItem key={item.id} item={item} />
+          ))
+        )}
+      </View>
+    </View>
   );
 }
 

@@ -194,13 +194,9 @@ serve(async (req) => {
         break;
         
       case 'trending':
-        // Show trending posts with at least 5 reactions from last 24 hours
-        const dayAgo = new Date();
-        dayAgo.setHours(dayAgo.getHours() - 24);
+        // Simplified trending: just show trending posts (for testing)
         query = query
           .eq('is_trending', true)
-          .gte('reactions_count', 5)
-          .gte('created_at', dayAgo.toISOString())
           .order('trending_score', { ascending: false })
           .order('created_at', { ascending: false });
         break;

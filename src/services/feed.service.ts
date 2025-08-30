@@ -74,13 +74,6 @@ class FeedService {
         throw error;
       }
 
-      console.log('Feed service received data:', {
-        postsCount: data?.posts?.length || 0,
-        algorithm: data?.algorithm,
-        hasMore: data?.hasMore,
-        timestamp: new Date().toISOString()
-      });
-
       return data;
     } catch (error) {
       console.error('Feed service error:', error);
@@ -100,35 +93,36 @@ class FeedService {
 
 
   /**
-   * Track post view for analytics and trending calculation
+   * Track post view - all deduplication logic handled at database level
    */
-  async trackPostView(postId: number, userId?: string, ipAddress?: string): Promise<void> {
+  async trackPostView(
+    postId: number, 
+    context?: { 
+      source?: string; 
+      algorithm?: string; 
+      scope?: string; 
+    }
+  ): Promise<{ success: boolean; tracked: boolean }> {
     try {
-      // Prevent duplicate views within 1 hour
-      const hourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-      
-      const { data: existingView } = await supabase
-        .from('post_views')
-        .select('id')
-        .eq('post_id', postId)
-        .gte('viewed_at', hourAgo)
-        .limit(1);
-
-      if (existingView && existingView.length > 0) {
-        return; // Already viewed recently
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('User must be authenticated to track views');
       }
 
-      await supabase
-        .from('post_views')
-        .insert({
-          post_id: postId,
-          user_id: userId || null,
-          ip_address: ipAddress || null
-        });
+      const { data, error } = await supabase.functions.invoke('track-post-view', {
+        headers: { 'Authorization': `Bearer ${session.access_token}` },
+        body: { postId, context }
+      });
 
+      if (error) {
+        throw error;
+      }
+
+      return data;
     } catch (error) {
-      console.error('Error tracking post view:', error);
-      // Don't throw - view tracking shouldn't break the feed
+      console.warn('View tracking failed:', error);
+      // Return failure result instead of throwing - view tracking shouldn't break UI
+      return { success: false, tracked: false };
     }
   }
 

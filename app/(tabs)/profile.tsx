@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { StyleSheet, RefreshControl } from 'react-native';
 import { View } from '@/components/ui/view';
 import { Text } from '@/components/ui/text';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -10,17 +10,32 @@ import { ProfileTabs, ProfileTabType } from '@/components/profile/ProfileTabs';
 import { UserPostsList } from '@/components/profile/UserPostsList';
 import { UserCommentsList } from '@/components/profile/UserCommentsList';
 import { UserLikesList } from '@/components/profile/UserLikesList';
+import { useCurrentUserProfile } from '@/src/hooks/useProfile';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const backgroundColor = useThemeColor({}, 'background');
   const mutedColor = useThemeColor({}, 'mutedForeground');
+  const primaryColor = useThemeColor({}, 'primary');
   const { userProfile } = useAuth();
+  const profileHook = useCurrentUserProfile();
   const [activeTab, setActiveTab] = useState<ProfileTabType>('posts');
+  const [refreshing, setRefreshing] = useState(false);
 
   const handleEditProfile = () => {
     // TODO: Navigate to edit profile modal/screen
     console.log('Edit profile pressed');
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await profileHook.refresh();
+    } catch (error) {
+      console.error('Profile refresh error:', error);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   if (!userProfile) {
@@ -57,24 +72,27 @@ export default function ProfileScreen() {
         <Text variant="title" style={styles.headerTitle}>Profile</Text>
       </View>
       
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <ProfileHeader
-          profile={userProfile}
-          isOwnProfile={true}
-          onEditPress={handleEditProfile}
-        />
-      </ScrollView>
-
       <ProfileTabs
         activeTab={activeTab}
         onTabChange={setActiveTab}
         postsCount={userProfile.postsCount}
         commentsCount={userProfile.commentsCount}
         likesCount={userProfile.reactionsReceived}
+        headerComponent={
+          <ProfileHeader
+            profile={userProfile}
+            isOwnProfile={true}
+            onEditPress={handleEditProfile}
+          />
+        }
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[primaryColor]}
+            tintColor={primaryColor}
+          />
+        }
       >
         {renderTabContent()}
       </ProfileTabs>
@@ -93,12 +111,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-  },
-  scrollView: {
-    flexGrow: 0,
-  },
-  scrollContent: {
-    flexGrow: 0,
   },
   loadingContainer: {
     flex: 1,

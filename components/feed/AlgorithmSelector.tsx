@@ -1,9 +1,9 @@
-import React from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
-import { View } from '@/components/ui/view';
 import { Text } from '@/components/ui/text';
+import { View } from '@/components/ui/view';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { FeedAlgorithm } from '@/src/services/feed.service';
+import React from 'react';
+import { ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 
 interface AlgorithmOption {
   value: FeedAlgorithm;

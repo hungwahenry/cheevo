@@ -4,14 +4,13 @@ import { View } from '@/components/ui/view';
 import { Text } from '@/components/ui/text';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useFeed } from '@/src/hooks/useFeed';
-import { FeedAlgorithm, FeedScope } from '@/src/services/feed.service';
+import { FeedAlgorithm, FeedScope, feedService } from '@/src/services/feed.service';
 import { PostItem } from './PostItem';
 
 interface FeedListProps {
   algorithm: FeedAlgorithm;
   scope: FeedScope;
   showUniversity?: boolean;
-  onReaction?: (postId: number) => void;
   onComment?: (postId: number) => void;
 }
 
@@ -19,7 +18,6 @@ export function FeedList({
   algorithm, 
   scope, 
   showUniversity = false,
-  onReaction,
   onComment 
 }: FeedListProps) {
   const mutedColor = useThemeColor({}, 'mutedForeground');
@@ -33,11 +31,13 @@ export function FeedList({
     error,
     loadMore,
     refresh,
-    trackPostView
+    toggleReaction,
+    trackView
   } = useFeed({ algorithm, scope });
 
-  const handlePostView = (postId: number) => {
-    trackPostView(postId);
+  const handlePostView = async (postId: number) => {
+    // Use the hook's trackView method
+    await trackView(postId);
   };
 
   const handleLoadMore = () => {
@@ -50,7 +50,7 @@ export function FeedList({
     <PostItem
       post={item}
       showUniversity={showUniversity}
-      onReaction={onReaction}
+      onReaction={toggleReaction}
       onComment={onComment}
       onView={() => handlePostView(item.id)}
     />
@@ -99,7 +99,7 @@ export function FeedList({
       renderItem={renderPost}
       keyExtractor={(item) => item.id.toString()}
       style={[styles.list, { backgroundColor }]}
-      contentContainerStyle={posts.length === 0 ? styles.emptyList : undefined}
+      contentContainerStyle={posts.length === 0 ? styles.emptyList : styles.listContent}
       
       // Pull to refresh
       refreshControl={
@@ -138,6 +138,10 @@ const styles = StyleSheet.create({
   },
   emptyList: {
     flexGrow: 1,
+  },
+  listContent: {
+    padding: 16,
+    gap: 12,
   },
   emptyContainer: {
     flex: 1,

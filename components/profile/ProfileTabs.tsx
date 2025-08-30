@@ -3,7 +3,7 @@ import { View } from '@/components/ui/view';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { FileText, Heart, MessageCircle } from 'lucide-react-native';
 import React from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, ScrollView } from 'react-native';
 
 export type ProfileTabType = 'posts' | 'comments' | 'likes';
 
@@ -13,6 +13,8 @@ interface ProfileTabsProps {
   postsCount?: number;
   commentsCount?: number;
   likesCount?: number;
+  headerComponent?: React.ReactNode;
+  refreshControl?: React.ReactElement<any>;
   children: React.ReactNode;
 }
 
@@ -22,6 +24,8 @@ export function ProfileTabs({
   postsCount = 0,
   commentsCount = 0,
   likesCount = 0,
+  headerComponent,
+  refreshControl,
   children 
 }: ProfileTabsProps) {
   const primaryColor = useThemeColor({}, 'primary');
@@ -90,17 +94,28 @@ export function ProfileTabs({
     );
   };
 
+  const TabBar = () => (
+    <View style={[styles.tabsContainer, { borderBottomColor: borderColor, backgroundColor }]}>
+      {tabs.map((tab) => (
+        <TabButton key={tab.id} tab={tab} />
+      ))}
+    </View>
+  );
+
   return (
     <View style={styles.container}>
-      <View style={[styles.tabsContainer, { borderBottomColor: borderColor }]}>
-        {tabs.map((tab) => (
-          <TabButton key={tab.id} tab={tab} />
-        ))}
-      </View>
-      
-      <View style={[styles.contentContainer, { backgroundColor }]}>
-        {children}
-      </View>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={headerComponent ? [1] : [0]}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={refreshControl}
+      >
+        {headerComponent}
+        <TabBar />
+        <View style={styles.contentContainer}>
+          {children}
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -108,6 +123,9 @@ export function ProfileTabs({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   tabsContainer: {
     flexDirection: 'row',
@@ -136,5 +154,6 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flex: 1,
+    minHeight: 500,
   },
 });

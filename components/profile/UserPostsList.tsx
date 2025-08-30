@@ -4,7 +4,7 @@ import { View } from '@/components/ui/view';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { userProfileService } from '@/src/services/user-profile.service';
 import React, { useEffect, useState } from 'react';
-import { FlatList, Image, RefreshControl, StyleSheet } from 'react-native';
+import { Image, StyleSheet } from 'react-native';
 
 interface Post {
   id: string;
@@ -142,21 +142,17 @@ export function UserPostsList({ userId }: UserPostsListProps) {
   }
 
   return (
-    <FlatList
-      data={posts}
-      renderItem={PostItem}
-      keyExtractor={(item) => item.id}
-      style={[styles.list, { backgroundColor }]}
-      contentContainerStyle={styles.listContent}
-      ListEmptyComponent={EmptyState}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={() => fetchPosts(true)}
-        />
-      }
-      showsVerticalScrollIndicator={false}
-    />
+    <View style={[styles.list, { backgroundColor }]}>
+      <View style={styles.listContent}>
+        {posts.length === 0 && !loading ? (
+          <EmptyState />
+        ) : (
+          posts.map((item) => (
+            <PostItem key={item.id} item={item} />
+          ))
+        )}
+      </View>
+    </View>
   );
 }
 

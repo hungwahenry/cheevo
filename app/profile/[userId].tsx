@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { StyleSheet, RefreshControl } from 'react-native';
 import { Stack, useLocalSearchParams, router } from 'expo-router';
 import { Text } from '@/components/ui/text';
 import { View } from '@/components/ui/view';
@@ -16,10 +16,23 @@ import { UserLikesList } from '@/components/profile/UserLikesList';
 export default function UserProfileScreen() {
   const backgroundColor = useThemeColor({}, 'background');
   const mutedColor = useThemeColor({}, 'mutedForeground');
+  const primaryColor = useThemeColor({}, 'primary');
   const { userId } = useLocalSearchParams<{ userId: string }>();
   
   const profileHook = useProfile(userId as string);
   const [activeTab, setActiveTab] = useState<ProfileTabType>('posts');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await profileHook.refresh();
+    } catch (error) {
+      console.error('Profile refresh error:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
 
   const renderTabContent = () => {
@@ -78,23 +91,26 @@ export default function UserProfileScreen() {
         </View>
       ) : profileHook.profile ? (
         <>
-          <ScrollView 
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-          >
-            <ProfileHeader
-              profile={profileHook.profile}
-              isOwnProfile={false}
-            />
-          </ScrollView>
-
           <ProfileTabs
             activeTab={activeTab}
             onTabChange={setActiveTab}
             postsCount={profileHook.stats.postsCount}
             commentsCount={profileHook.stats.commentsCount}
             likesCount={profileHook.stats.likesCount}
+            headerComponent={
+              <ProfileHeader
+                profile={profileHook.profile}
+                isOwnProfile={false}
+              />
+            }
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                colors={[primaryColor]}
+                tintColor={primaryColor}
+              />
+            }
           >
             {renderTabContent()}
           </ProfileTabs>
@@ -107,12 +123,6 @@ export default function UserProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  scrollView: {
-    flexGrow: 0,
-  },
-  scrollContent: {
-    flexGrow: 0,
   },
   centerContainer: {
     flex: 1,
