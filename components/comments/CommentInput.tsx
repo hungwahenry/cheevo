@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { StyleSheet, TextInput, Alert, TouchableOpacity } from 'react-native';
 import { View } from '@/components/ui/view';
-import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useCreateComment } from '@/src/hooks/useCreateComment';
@@ -27,7 +26,6 @@ export function CommentInput({
 }: CommentInputProps) {
   const [content, setContent] = useState('');
   
-  // Auto-prefill with @mention when replying - update when replyContext changes
   useEffect(() => {
     const initialContent = replyContext ? `@${replyContext.username} ` : '';
     setContent(initialContent);
@@ -62,124 +60,130 @@ export function CommentInput({
     }
   };
 
+  const canSubmit = content.trim().length > 0 && !isCreating;
   const placeholder = isReplyMode 
-    ? `Reply to ${replyContext.username}...` 
+    ? `Reply to @${replyContext.username}...` 
     : 'Add a comment...';
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
-      <View style={[styles.container, { backgroundColor, borderTopColor: borderColor }]}>
-        {/* Reply Header */}
-        {isReplyMode && (
-          <View style={styles.replyHeader}>
-            <View style={styles.replyIndicator}>
-              <Text style={[styles.replyText, { color: mutedColor }]}>
-                Replying to @{replyContext.username}
-              </Text>
-            </View>
-            {onCancelReply && (
-              <Button variant="ghost" size="sm" onPress={onCancelReply} style={styles.cancelButton}>
-                <X size={14} color={mutedColor} />
-              </Button>
-            )}
+    <View style={[styles.container, { backgroundColor, borderTopColor: borderColor }]}>
+      {/* Reply Header */}
+      {isReplyMode && (
+        <View style={styles.replyHeader}>
+          <View style={[styles.replyBadge, { backgroundColor: `${primaryColor}15` }]}>
+            <Text style={[styles.replyText, { color: primaryColor }]}>
+              Replying to @{replyContext.username}
+            </Text>
           </View>
-        )}
-        
-        {/* Input Row */}
-        <View style={styles.inputRow}>
-          <TextInput
-            style={[styles.textInput, { color: textColor, borderColor }]}
-            placeholder={placeholder}
-            placeholderTextColor={mutedColor}
-            value={content}
-            onChangeText={setContent}
-            multiline
-            maxLength={280}
-            editable={!isCreating}
-            textAlignVertical="center"
-          />
-          
-          <Button
-            variant="ghost"
-            size="sm"
-            onPress={handleSubmit}
-            disabled={!content.trim() || isCreating}
-            style={styles.sendButton}
-          >
-            <Send 
-              size={18} 
-              color={!content.trim() || isCreating ? mutedColor : primaryColor} 
-            />
-          </Button>
+          {onCancelReply && (
+            <TouchableOpacity 
+              onPress={onCancelReply}
+              style={styles.cancelButton}
+            >
+              <X size={16} color={mutedColor} />
+            </TouchableOpacity>
+          )}
         </View>
+      )}
+      
+      {/* Input Container */}
+      <View style={[styles.inputContainer, { borderColor }]}>
+        <TextInput
+          style={[styles.textInput, { color: textColor }]}
+          placeholder={placeholder}
+          placeholderTextColor={mutedColor}
+          value={content}
+          onChangeText={setContent}
+          multiline
+          maxLength={280}
+          editable={!isCreating}
+          textAlignVertical="top"
+          returnKeyType="send"
+          onSubmitEditing={canSubmit ? handleSubmit : undefined}
+        />
         
-        {/* Character Count */}
-        {content.length > 200 && (
-          <Text style={[styles.charCount, { 
-            color: content.length > 280 ? '#ef4444' : mutedColor 
-          }]}>
-            {content.length}/280
-          </Text>
-        )}
+        <TouchableOpacity
+          onPress={handleSubmit}
+          disabled={!canSubmit}
+          style={[
+            styles.sendButton,
+            { 
+              backgroundColor: canSubmit ? primaryColor : mutedColor + '30',
+              opacity: canSubmit ? 1 : 0.6
+            }
+          ]}
+        >
+          <Send 
+            size={18} 
+            color={canSubmit ? 'white' : mutedColor} 
+          />
+        </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
+      
+      {/* Character Count */}
+      {content.length > 200 && (
+        <Text style={[styles.charCount, { 
+          color: content.length > 280 ? '#ef4444' : mutedColor 
+        }]}>
+          {content.length}/280
+        </Text>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 32,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   replyHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
-    paddingHorizontal: 0,
+    marginBottom: 12,
   },
-  replyIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
+  replyBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
   replyText: {
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   cancelButton: {
-    padding: 2,
-    minHeight: 24,
-    minWidth: 24,
+    padding: 8,
+    borderRadius: 16,
   },
-  inputRow: {
+  inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: 12,
+    borderWidth: 1,
+    borderRadius: 24,
+    paddingLeft: 16,
+    paddingRight: 8,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(0,0,0,0.02)',
+    gap: 8,
   },
   textInput: {
     flex: 1,
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    minHeight: 40,
-    maxHeight: 80,
     fontSize: 16,
+    lineHeight: 20,
+    minHeight: 24,
+    maxHeight: 80,
+    paddingVertical: 4,
   },
   sendButton: {
+    width: 32,
+    height: 32,
     borderRadius: 16,
-    paddingHorizontal: 12,
-    minWidth: 36,
-    height: 36,
-    alignSelf: 'flex-end',
-    backgroundColor: 'transparent',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 2,
   },
   charCount: {
     fontSize: 12,

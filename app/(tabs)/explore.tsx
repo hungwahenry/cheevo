@@ -7,6 +7,7 @@ import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AlgorithmSelector } from '@/components/feed/AlgorithmSelector';
 import { FeedList } from '@/components/feed/FeedList';
+import { CommentsSheet } from '@/components/comments/CommentsSheet';
 import { FeedAlgorithm } from '@/src/services/feed.service';
 
 const GLOBAL_ALGORITHMS: FeedAlgorithm[] = ['trending', 'chronological', 'discovery'];
@@ -16,10 +17,17 @@ export default function ExploreScreen() {
   const backgroundColor = useThemeColor({}, 'background');
   const primaryColor = useThemeColor({}, 'primary');
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<FeedAlgorithm>('trending');
+  const [commentsVisible, setCommentsVisible] = useState(false);
+  const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
 
   const handleComment = (postId: number) => {
-    // TODO: Implement comment functionality
-    console.log('Comment on post:', postId);
+    setSelectedPostId(postId);
+    setCommentsVisible(true);
+  };
+
+  const handleCloseComments = () => {
+    setCommentsVisible(false);
+    setSelectedPostId(null);
   };
 
   return (
@@ -46,6 +54,15 @@ export default function ExploreScreen() {
         showUniversity={true}
         onComment={handleComment}
       />
+
+      {/* Comments Modal */}
+      {selectedPostId && (
+        <CommentsSheet
+          isVisible={commentsVisible}
+          onClose={handleCloseComments}
+          postId={selectedPostId}
+        />
+      )}
     </View>
   );
 }

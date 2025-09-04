@@ -77,8 +77,6 @@ export function PostItem({ post, showUniversity = false, onReaction, onComment, 
 
   const handleCommentPress = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // Navigate to post details page for commenting
-    router.push(`/post/${post.id}`);
     onComment?.(post.id);
   };
 

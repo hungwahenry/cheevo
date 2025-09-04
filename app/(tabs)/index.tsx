@@ -1,5 +1,6 @@
 import { AlgorithmSelector } from '@/components/feed/AlgorithmSelector';
 import { FeedList } from '@/components/feed/FeedList';
+import { CommentsSheet } from '@/components/comments/CommentsSheet';
 import { Text } from '@/components/ui/text';
 import { View } from '@/components/ui/view';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -18,12 +19,19 @@ export default function FeedScreen() {
   const primaryColor = useThemeColor({}, 'primary');
   const { userProfile } = useAuth();
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<FeedAlgorithm>('trending');
+  const [commentsVisible, setCommentsVisible] = useState(false);
+  const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
   
   const campusName = userProfile?.university?.name || 'Campus';
 
   const handleComment = (postId: number) => {
-    // TODO: Implement comment functionality  
-    console.log('Comment on post:', postId);
+    setSelectedPostId(postId);
+    setCommentsVisible(true);
+  };
+
+  const handleCloseComments = () => {
+    setCommentsVisible(false);
+    setSelectedPostId(null);
   };
 
   return (
@@ -50,6 +58,15 @@ export default function FeedScreen() {
         showUniversity={true}
         onComment={handleComment}
       />
+
+      {/* Comments Modal */}
+      {selectedPostId && (
+        <CommentsSheet
+          isVisible={commentsVisible}
+          onClose={handleCloseComments}
+          postId={selectedPostId}
+        />
+      )}
     </View>
   );
 }
