@@ -4,6 +4,7 @@ import { View } from '@/components/ui/view';
 import { Text } from '@/components/ui/text';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useFeed } from '@/src/hooks/useFeed';
+import { usePost } from '@/src/hooks/usePost';
 import { FeedAlgorithm, FeedScope, feedService } from '@/src/services/feed.service';
 import { PostItem } from './PostItem';
 
@@ -35,9 +36,27 @@ export function FeedList({
     trackView
   } = useFeed({ algorithm, scope });
 
+  const { deletePost } = usePost();
+
   const handlePostView = async (postId: number) => {
     // Use the hook's trackView method
     await trackView(postId);
+  };
+
+  const handleDeletePost = async (postId: number) => {
+    const result = await deletePost(postId);
+    if (result.success) {
+      // Refresh the feed to remove the deleted post
+      await refresh();
+    } else {
+      // Could show toast/alert with error message
+      console.error('Failed to delete post:', result.error);
+    }
+  };
+
+  const handleReportPost = async (postId: number) => {
+    // TODO: Implement report functionality
+    console.log('Report post:', postId);
   };
 
   const handleLoadMore = () => {
@@ -53,6 +72,8 @@ export function FeedList({
       onReaction={toggleReaction}
       onComment={onComment}
       onView={() => handlePostView(item.id)}
+      onDelete={handleDeletePost}
+      onReport={handleReportPost}
     />
   );
 

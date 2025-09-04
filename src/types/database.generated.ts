@@ -13,31 +13,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "13.0.4"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       app_config: {
@@ -77,7 +52,6 @@ export type Database = {
           moderation_score: Json | null
           parent_comment_id: number | null
           post_id: number
-          thread_depth: number | null
           updated_at: string
           user_id: string
         }
@@ -90,7 +64,6 @@ export type Database = {
           moderation_score?: Json | null
           parent_comment_id?: number | null
           post_id: number
-          thread_depth?: number | null
           updated_at?: string
           user_id: string
         }
@@ -103,7 +76,6 @@ export type Database = {
           moderation_score?: Json | null
           parent_comment_id?: number | null
           post_id?: number
-          thread_depth?: number | null
           updated_at?: string
           user_id?: string
         }
@@ -197,21 +169,18 @@ export type Database = {
       post_views: {
         Row: {
           id: number
-          ip_address: unknown | null
           post_id: number
           user_id: string | null
           viewed_at: string
         }
         Insert: {
           id?: number
-          ip_address?: unknown | null
           post_id: number
           user_id?: string | null
           viewed_at?: string
         }
         Update: {
           id?: number
-          ip_address?: unknown | null
           post_id?: number
           user_id?: string | null
           viewed_at?: string
@@ -678,9 +647,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       ban_type: ["shadow_ban", "permanent_ban"],

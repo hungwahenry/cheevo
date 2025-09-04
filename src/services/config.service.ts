@@ -63,7 +63,6 @@ class ConfigService {
       maxPostLength: await this.getAppConfig('max_post_length', 280),
       maxCommentLength: await this.getAppConfig('max_comment_length', 140),
       maxCommentsPerPost: await this.getAppConfig('max_comments_per_post', 100),
-      commentThreadDepth: await this.getAppConfig('comment_thread_depth', 3),
     };
   }
 

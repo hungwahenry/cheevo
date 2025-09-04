@@ -60,7 +60,17 @@ class FeedService {
    */
   async getFeed(options: FeedOptions): Promise<FeedResponse> {
     try {
+      // Get current session for authentication
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        throw new Error('Authentication required to load feed');
+      }
+
       const { data, error } = await supabase.functions.invoke('get-feed', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: {
           algorithm: options.algorithm,
           scope: options.scope,

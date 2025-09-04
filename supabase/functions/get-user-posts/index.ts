@@ -13,19 +13,40 @@ interface GetUserPostsRequest {
 }
 
 interface UserPost {
-  id: string;
+  id: number;
   content: string;
   giphy_url: string | null;
+  user_id: string;
+  university_id: number;
   reactions_count: number;
   comments_count: number;
   views_count: number;
-  trending_score: number;
   is_trending: boolean;
+  trending_score: number;
+  is_flagged: boolean;
   created_at: string;
-  universities?: {
+  updated_at: string;
+  user_profiles: {
+    username: string;
+    avatar_url: string | null;
+    trending_score: number | null;
+    university_id: number;
+  } | null;
+  universities: {
     name: string;
     short_name: string | null;
-  };
+    state: string;
+  } | null;
+  reactions: Array<{
+    id: number;
+    user_id: string;
+    created_at: string;
+  }>;
+  user_reaction?: {
+    id: number;
+    user_id: string;
+    created_at: string;
+  } | null;
 }
 
 interface GetUserPostsResponse {
@@ -85,20 +106,39 @@ serve(async (req) => {
       throw new Error('Offset must be non-negative');
     }
 
-    // Get user posts
+    // Get user posts with full FeedPost data
     const { data: posts, error } = await supabaseClient
       .from('posts')
       .select(`
         id,
         content,
         giphy_url,
+        user_id,
+        university_id,
         reactions_count,
         comments_count,
         views_count,
-        trending_score,
         is_trending,
+        trending_score,
+        is_flagged,
         created_at,
-        universities(name, short_name)
+        updated_at,
+        user_profiles!posts_user_id_user_profiles_fkey (
+          username,
+          avatar_url,
+          trending_score,
+          university_id
+        ),
+        universities!posts_university_id_fkey (
+          name,
+          short_name,
+          state
+        ),
+        reactions!reactions_post_id_fkey (
+          id,
+          user_id,
+          created_at
+        )
       `)
       .eq('user_id', userId.trim())
       .eq('is_flagged', false)
@@ -109,9 +149,27 @@ serve(async (req) => {
       throw new Error(error.message);
     }
 
+    // Process posts to add user reactions and ensure proper format
+    const processedPosts: UserPost[] = (posts || []).map(post => {
+      const reactions = post.reactions || [];
+      const userReaction = reactions.find((r: any) => r.user_id === user.id) || null;
+      
+      return {
+        ...post,
+        user_reaction: userReaction,
+        reactions: reactions,
+        reactions_count: post.reactions_count || 0,
+        comments_count: post.comments_count || 0,
+        views_count: post.views_count || 0,
+        is_trending: post.is_trending || false,
+        trending_score: post.trending_score || 0,
+        is_flagged: post.is_flagged || false,
+      };
+    });
+
     const response: GetUserPostsResponse = {
       success: true,
-      data: posts || [],
+      data: processedPosts,
       timestamp: new Date().toISOString()
     };
 

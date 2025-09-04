@@ -22,11 +22,14 @@ export default function UserProfileScreen() {
   const profileHook = useProfile(userId as string);
   const [activeTab, setActiveTab] = useState<ProfileTabType>('posts');
   const [refreshing, setRefreshing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
       await profileHook.refresh();
+      // Force all tabs to reload by changing key
+      setRefreshKey(prev => prev + 1);
     } catch (error) {
       console.error('Profile refresh error:', error);
     } finally {
@@ -40,11 +43,11 @@ export default function UserProfileScreen() {
     
     switch (activeTab) {
       case 'posts':
-        return <UserPostsList userId={userId} />;
+        return <UserPostsList key={`posts-${refreshKey}`} userId={userId} />;
       case 'comments':
-        return <UserCommentsList userId={userId} />;
+        return <UserCommentsList key={`comments-${refreshKey}`} userId={userId} />;
       case 'likes':
-        return <UserLikesList userId={userId} />;
+        return <UserLikesList key={`likes-${refreshKey}`} userId={userId} />;
       default:
         return null;
     }
@@ -94,9 +97,9 @@ export default function UserProfileScreen() {
           <ProfileTabs
             activeTab={activeTab}
             onTabChange={setActiveTab}
-            postsCount={profileHook.stats.postsCount}
-            commentsCount={profileHook.stats.commentsCount}
-            likesCount={profileHook.stats.likesCount}
+            postsCount={profileHook.profile.postsCount || 0}
+            commentsCount={profileHook.profile.commentsCount || 0}
+            likesCount={profileHook.profile.reactionsReceived || 0}
             headerComponent={
               <ProfileHeader
                 profile={profileHook.profile}

@@ -1,75 +1,32 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { View } from '@/components/ui/view';
 import { Text } from '@/components/ui/text';
 import { Card } from '@/components/ui/card';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import { userProfileService } from '@/src/services/user-profile.service';
+import { useProfileContent } from '@/src/hooks/useProfileContent';
 import { StyleSheet } from 'react-native';
-
-interface Comment {
-  id: string;
-  content: string;
-  created_at: string;
-  giphy_url: null;
-  reactions_count: number;
-  comments_count: number;
-  views_count: number;
-  trending_score: number;
-  is_trending: boolean;
-  user_id: string;
-  username: string;
-  originalPost?: {
-    id: string;
-    content: string;
-    giphy_url: string | null;
-    reactions_count: number;
-    comments_count: number;
-    views_count: number;
-    trending_score: number;
-    is_trending: boolean;
-    created_at: string;
-    user_id: string;
-  };
-}
 
 interface UserCommentsListProps {
   userId: string;
 }
 
+interface Comment {
+  id: string;
+  content: string;
+  created_at: string;
+  originalPost?: {
+    id: string;
+    content: string;
+  };
+}
+
 export function UserCommentsList({ userId }: UserCommentsListProps) {
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
   const mutedColor = useThemeColor({}, 'mutedForeground');
   const backgroundColor = useThemeColor({}, 'background');
   const borderColor = useThemeColor({}, 'border');
-
-  const fetchComments = async (isRefresh = false) => {
-    try {
-      if (isRefresh) setRefreshing(true);
-      else setLoading(true);
-      
-      const response = await userProfileService.getUserComments(userId, 20, 0);
-      
-      if (response.success) {
-        setComments(response.data);
-        setError(null);
-      } else {
-        setError(response.error);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load comments');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchComments();
-  }, [userId]);
+  
+  const { data, isLoading, error } = useProfileContent(userId, 'comments');
+  const comments = data as Comment[];
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -81,46 +38,9 @@ export function UserCommentsList({ userId }: UserCommentsListProps) {
     });
   };
 
-  const CommentItem = ({ item }: { item: Comment }) => (
-    <Card style={styles.commentCard}>
-      {/* Original Post Context */}
-      {item.originalPost && (
-        <View style={[styles.originalPost, { borderLeftColor: borderColor }]}>
-          <Text style={[styles.originalLabel, { color: mutedColor }]}>
-            Commented on:
-          </Text>
-          <Text 
-            style={[styles.originalContent, { color: mutedColor }]}
-            numberOfLines={2}
-          >
-            {item.originalPost.content}
-          </Text>
-        </View>
-      )}
-      
-      {/* Comment Content */}
-      <View style={styles.commentContent}>
-        <Text style={styles.emojiIcon}>💬</Text>
-        <Text style={styles.commentText}>{item.content}</Text>
-      </View>
-      
-      <Text style={[styles.dateText, { color: mutedColor }]}>
-        {formatDate(item.created_at)}
-      </Text>
-    </Card>
-  );
-
-  const EmptyState = () => (
-    <View style={styles.emptyState}>
-      <Text style={[styles.emptyText, { color: mutedColor }]}>
-        No comments yet
-      </Text>
-    </View>
-  );
-
-  if (loading && !refreshing) {
+  if (isLoading) {
     return (
-      <View style={styles.centerContainer}>
+      <View style={[styles.centerContainer, { backgroundColor }]}>
         <Text style={[styles.loadingText, { color: mutedColor }]}>
           Loading comments...
         </Text>
@@ -130,7 +50,7 @@ export function UserCommentsList({ userId }: UserCommentsListProps) {
 
   if (error) {
     return (
-      <View style={styles.centerContainer}>
+      <View style={[styles.centerContainer, { backgroundColor }]}>
         <Text style={[styles.errorText, { color: mutedColor }]}>
           {error}
         </Text>
@@ -138,28 +58,69 @@ export function UserCommentsList({ userId }: UserCommentsListProps) {
     );
   }
 
-  return (
-    <View style={[styles.list, { backgroundColor }]}>
-      <View style={styles.listContent}>
-        {comments.length === 0 && !loading ? (
-          <EmptyState />
-        ) : (
-          comments.map((item) => (
-            <CommentItem key={item.id} item={item} />
-          ))
-        )}
+  if (comments.length === 0) {
+    return (
+      <View style={[styles.centerContainer, { backgroundColor }]}>
+        <Text style={[styles.emptyText, { color: mutedColor }]}>
+          No comments yet
+        </Text>
       </View>
+    );
+  }
+
+  return (
+    <View style={[styles.container, { backgroundColor }]}>
+      {comments.map((comment) => (
+        <Card key={comment.id} style={styles.commentCard}>
+          {comment.originalPost && (
+            <View style={[styles.originalPost, { borderLeftColor: borderColor }]}>
+              <Text style={[styles.originalLabel, { color: mutedColor }]}>
+                Commented on:
+              </Text>
+              <Text 
+                style={[styles.originalContent, { color: mutedColor }]}
+                numberOfLines={2}
+              >
+                {comment.originalPost.content}
+              </Text>
+            </View>
+          )}
+          
+          <View style={styles.commentContent}>
+            <Text style={styles.emojiIcon}>💬</Text>
+            <Text style={styles.commentText}>{comment.content}</Text>
+          </View>
+          
+          <Text style={[styles.dateText, { color: mutedColor }]}>
+            {formatDate(comment.created_at)}
+          </Text>
+        </Card>
+      ))}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  list: {
+  container: {
     flex: 1,
-  },
-  listContent: {
     padding: 16,
     gap: 12,
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  loadingText: {
+    fontSize: 14,
+  },
+  errorText: {
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
   },
   commentCard: {
     padding: 16,
@@ -194,25 +155,5 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: 12,
     alignSelf: 'flex-end',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 32,
-  },
-  loadingText: {
-    fontSize: 14,
-  },
-  errorText: {
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  emptyState: {
-    padding: 32,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 14,
   },
 });

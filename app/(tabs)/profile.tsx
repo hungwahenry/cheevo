@@ -21,6 +21,7 @@ export default function ProfileScreen() {
   const profileHook = useCurrentUserProfile();
   const [activeTab, setActiveTab] = useState<ProfileTabType>('posts');
   const [refreshing, setRefreshing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const handleEditProfile = () => {
     // TODO: Navigate to edit profile modal/screen
@@ -31,6 +32,8 @@ export default function ProfileScreen() {
     setRefreshing(true);
     try {
       await profileHook.refresh();
+      // Force all tabs to reload by changing key
+      setRefreshKey(prev => prev + 1);
     } catch (error) {
       console.error('Profile refresh error:', error);
     } finally {
@@ -54,13 +57,15 @@ export default function ProfileScreen() {
   }
 
   const renderTabContent = () => {
+    if (!profileHook.profile) return null;
+    
     switch (activeTab) {
       case 'posts':
-        return <UserPostsList userId={userProfile.id} />;
+        return <UserPostsList key={`posts-${refreshKey}`} userId={profileHook.profile.id} />;
       case 'comments':
-        return <UserCommentsList userId={userProfile.id} />;
+        return <UserCommentsList key={`comments-${refreshKey}`} userId={profileHook.profile.id} />;
       case 'likes':
-        return <UserLikesList userId={userProfile.id} />;
+        return <UserLikesList key={`likes-${refreshKey}`} userId={profileHook.profile.id} />;
       default:
         return null;
     }
@@ -72,19 +77,20 @@ export default function ProfileScreen() {
         <Text variant="title" style={styles.headerTitle}>Profile</Text>
       </View>
       
-      <ProfileTabs
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        postsCount={userProfile.postsCount}
-        commentsCount={userProfile.commentsCount}
-        likesCount={userProfile.reactionsReceived}
-        headerComponent={
-          <ProfileHeader
-            profile={userProfile}
-            isOwnProfile={true}
-            onEditPress={handleEditProfile}
-          />
-        }
+      {profileHook.profile && (
+        <ProfileTabs
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          postsCount={profileHook.profile.postsCount || 0}
+          commentsCount={profileHook.profile.commentsCount || 0}
+          likesCount={profileHook.profile.reactionsReceived || 0}
+          headerComponent={
+            <ProfileHeader
+              profile={profileHook.profile}
+              isOwnProfile={true}
+              onEditPress={handleEditProfile}
+            />
+          }
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -93,9 +99,10 @@ export default function ProfileScreen() {
             tintColor={primaryColor}
           />
         }
-      >
+        >
         {renderTabContent()}
       </ProfileTabs>
+      )}
     </View>
   );
 }

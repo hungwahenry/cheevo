@@ -54,10 +54,10 @@ function CreateScreen() {
 
     if (result.success) {
       // Show success message based on status
-      if (result.status === 'published') {
-        Alert.alert('Success!', result.message);
-      } else if (result.status === 'pending_review') {
-        Alert.alert('Under Review', result.message);
+      if (result.data.status === 'published') {
+        Alert.alert('Success!', result.data.message);
+      } else if (result.data.status === 'pending_review') {
+        Alert.alert('Under Review', result.data.message);
       }
       
       // Reset form and go back
@@ -65,7 +65,7 @@ function CreateScreen() {
       setSelectedGif(null);
       router.back();
     } else {
-      Alert.alert('Error', result.message || 'Failed to create post');
+      Alert.alert('Error', result.error || 'Failed to create post');
     }
   };
 

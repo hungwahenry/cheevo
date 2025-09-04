@@ -13,16 +13,40 @@ interface GetUserLikesRequest {
 }
 
 interface LikedPost {
-  id: string;
+  id: number;
   content: string;
   giphy_url: string | null;
+  user_id: string;
+  university_id: number;
   reactions_count: number;
   comments_count: number;
   views_count: number;
-  trending_score: number;
   is_trending: boolean;
+  trending_score: number;
+  is_flagged: boolean;
   created_at: string;
-  user_id: string;
+  updated_at: string;
+  user_profiles: {
+    username: string;
+    avatar_url: string | null;
+    trending_score: number | null;
+    university_id: number;
+  } | null;
+  universities: {
+    name: string;
+    short_name: string | null;
+    state: string;
+  } | null;
+  reactions: Array<{
+    id: number;
+    user_id: string;
+    created_at: string;
+  }>;
+  user_reaction?: {
+    id: number;
+    user_id: string;
+    created_at: string;
+  } | null;
 }
 
 interface GetUserLikesResponse {
@@ -82,7 +106,7 @@ serve(async (req) => {
       throw new Error('Offset must be non-negative');
     }
 
-    // Get user likes (posts they've reacted to)
+    // Get user likes (posts they've reacted to) with full FeedPost data
     const { data: likes, error } = await supabaseClient
       .from('reactions')
       .select(`
@@ -92,13 +116,32 @@ serve(async (req) => {
           id,
           content,
           giphy_url,
+          user_id,
+          university_id,
           reactions_count,
           comments_count,
           views_count,
-          trending_score,
           is_trending,
+          trending_score,
+          is_flagged,
           created_at,
-          user_id
+          updated_at,
+          user_profiles!posts_user_id_user_profiles_fkey (
+            username,
+            avatar_url,
+            trending_score,
+            university_id
+          ),
+          universities!posts_university_id_fkey (
+            name,
+            short_name,
+            state
+          ),
+          reactions!reactions_post_id_fkey (
+            id,
+            user_id,
+            created_at
+          )
         )
       `)
       .eq('user_id', userId.trim())
@@ -109,10 +152,26 @@ serve(async (req) => {
       throw new Error(error.message);
     }
 
-    // Transform likes to show the posts they liked
+    // Transform likes to show the posts they liked with proper FeedPost format
     const likedPosts: LikedPost[] = (likes || [])
       .map(like => like.posts)
-      .filter(post => post && post.id) as LikedPost[];
+      .filter(post => post && post.id)
+      .map(post => {
+        const reactions = post.reactions || [];
+        const userReaction = reactions.find((r: any) => r.user_id === user.id) || null;
+        
+        return {
+          ...post,
+          user_reaction: userReaction,
+          reactions: reactions,
+          reactions_count: post.reactions_count || 0,
+          comments_count: post.comments_count || 0,
+          views_count: post.views_count || 0,
+          is_trending: post.is_trending || false,
+          trending_score: post.trending_score || 0,
+          is_flagged: post.is_flagged || false,
+        };
+      }) as LikedPost[];
 
     const response: GetUserLikesResponse = {
       success: true,

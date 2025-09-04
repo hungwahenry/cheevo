@@ -1,13 +1,16 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { View } from '@/components/ui/view';
 import { Text } from '@/components/ui/text';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { UserAvatar } from '@/components/profile/UserAvatar';
 import { FeedPost } from '@/src/services/feed.service';
 import { useAuth } from '@/src/hooks/useAuth';
 import { router } from 'expo-router';
+import { PostActions } from './PostActions';
+import * as Haptics from 'expo-haptics';
 
 interface PostItemProps {
   post: FeedPost;
@@ -15,12 +18,16 @@ interface PostItemProps {
   onReaction?: (postId: number) => void;
   onComment?: (postId: number) => void;
   onView?: () => void;
+  onDelete?: (postId: number) => void;
+  onReport?: (postId: number) => void;
 }
 
-export function PostItem({ post, showUniversity = false, onReaction, onComment, onView }: PostItemProps) {
+export function PostItem({ post, showUniversity = false, onReaction, onComment, onView, onDelete, onReport }: PostItemProps) {
   const mutedColor = useThemeColor({}, 'mutedForeground');
   const primaryColor = useThemeColor({}, 'primary');
+  const borderColor = useThemeColor({}, 'border');
   const { userProfile } = useAuth();
+  const [imageError, setImageError] = useState(false);
 
   // Track post view when component mounts and becomes visible
   useEffect(() => {
@@ -63,11 +70,15 @@ export function PostItem({ post, showUniversity = false, onReaction, onComment, 
     }
   };
 
-  const handleReactionPress = () => {
+  const handleReactionPress = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onReaction?.(post.id);
   };
 
-  const handleCommentPress = () => {
+  const handleCommentPress = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Navigate to post details page for commenting
+    router.push(`/post/${post.id}`);
     onComment?.(post.id);
   };
 
@@ -77,16 +88,21 @@ export function PostItem({ post, showUniversity = false, onReaction, onComment, 
     <Card style={styles.postCard}>
       {/* Post Header */}
       <View style={styles.postHeader}>
-        <TouchableOpacity onPress={handleUserPress} style={styles.userInfo}>
+        <TouchableOpacity onPress={handleUserPress} style={styles.userInfo} activeOpacity={0.7}>
           <UserAvatar
             avatarUrl={post.user_profiles?.avatar_url}
             username={post.user_profiles?.username}
-            size={40}
+            size={44}
           />
           <View style={styles.userDetails}>
-            <Text style={styles.username}>
-              @{post.user_profiles?.username || 'Unknown'}
-            </Text>
+            <View style={styles.userRow}>
+              <Text style={styles.username}>
+                @{post.user_profiles?.username || 'Unknown'}
+              </Text>
+              <Text style={[styles.timeText, { color: mutedColor }]}>
+                · {formatDate(post.created_at)}
+              </Text>
+            </View>
             {showUniversity && post.universities && (
               <Text style={[styles.universityText, { color: mutedColor }]}>
                 {post.universities.short_name || post.universities.name}
@@ -95,60 +111,76 @@ export function PostItem({ post, showUniversity = false, onReaction, onComment, 
           </View>
         </TouchableOpacity>
 
-        <View style={styles.postMeta}>
-          {post.is_trending && (
-            <View style={[styles.trendingBadge, { backgroundColor: primaryColor }]}>
-              <Text style={styles.trendingText}>🔥</Text>
-            </View>
-          )}
-          <Text style={[styles.timeText, { color: mutedColor }]}>
-            {formatDate(post.created_at)}
-          </Text>
-        </View>
+        <PostActions
+          postId={post.id}
+          postUserId={post.user_id}
+          onDelete={onDelete}
+          onReport={onReport}
+        />
       </View>
 
       {/* Post Content */}
       <Text style={styles.postContent}>{post.content}</Text>
 
       {/* GIF if present */}
-      {post.giphy_url && (
+      {post.giphy_url && !imageError && (
         <Image
           source={{ uri: post.giphy_url }}
           style={styles.gifImage}
           resizeMode="cover"
+          onError={() => setImageError(true)}
         />
+      )}
+      
+      {/* Show error state if GIF failed to load */}
+      {post.giphy_url && imageError && (
+        <View style={[styles.gifError, { borderColor }]}>
+          <Text style={[styles.errorText, { color: mutedColor }]}>GIF unavailable</Text>
+        </View>
       )}
 
       {/* Post Actions */}
       <View style={styles.postActions}>
-        <TouchableOpacity 
-          onPress={handleReactionPress}
-          style={styles.actionButton}
-        >
-          <Text style={[styles.emojiIcon, isLiked && { opacity: 1 }]}>🔥</Text>
-          <Text style={[
-            styles.actionText, 
-            { color: isLiked ? primaryColor : mutedColor }
-          ]}>
-            {post.reactions_count || 0}
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.leftActions}>
+          <TouchableOpacity 
+            onPress={handleReactionPress}
+            style={[styles.actionButton, isLiked && styles.actionButtonActive]}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.emojiIcon, isLiked && styles.activeEmoji]}>🔥</Text>
+            <Text style={[
+              styles.actionText, 
+              { color: isLiked ? primaryColor : mutedColor }
+            ]}>
+              {post.reactions_count || 0}
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity 
-          onPress={handleCommentPress}
-          style={styles.actionButton}
-        >
-          <Text style={styles.emojiIcon}>💬</Text>
-          <Text style={[styles.actionText, { color: mutedColor }]}>
-            {post.comments_count || 0}
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity 
+            onPress={handleCommentPress}
+            style={styles.actionButton}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.emojiIcon}>💬</Text>
+            <Text style={[styles.actionText, { color: mutedColor }]}>
+              {post.comments_count || 0}
+            </Text>
+          </TouchableOpacity>
 
-        <View style={styles.actionButton}>
-          <Text style={styles.emojiIcon}>👀</Text>
-          <Text style={[styles.actionText, { color: mutedColor }]}>
-            {post.views_count || 0}
-          </Text>
+          <View style={styles.actionButton}>
+            <Text style={styles.emojiIcon}>👀</Text>
+            <Text style={[styles.actionText, { color: mutedColor }]}>
+              {post.views_count || 0}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.rightActions}>
+          {post.is_trending && (
+            <View style={[styles.trendingBadge, { backgroundColor: `${primaryColor}15` }]}>
+              <Text style={[styles.trendingText, { color: primaryColor }]}>🔥 Trending</Text>
+            </View>
+          )}
         </View>
       </View>
     </Card>
@@ -158,7 +190,7 @@ export function PostItem({ post, showUniversity = false, onReaction, onComment, 
 const styles = StyleSheet.create({
   postCard: {
     padding: 16,
-    gap: 12,
+    gap: 14,
   },
   postHeader: {
     flexDirection: 'row',
@@ -172,7 +204,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   userDetails: {
+    flex: 1,
     gap: 2,
+  },
+  userRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   username: {
     fontSize: 15,
@@ -182,48 +220,83 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
-  postMeta: {
-    alignItems: 'flex-end',
-    gap: 6,
-  },
-  trendingBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  trendingText: {
-    fontSize: 12,
-  },
   timeText: {
     fontSize: 12,
+    fontWeight: '500',
   },
   postContent: {
     fontSize: 16,
     lineHeight: 24,
+    marginTop: 2,
   },
   gifImage: {
     width: '100%',
     height: 200,
     borderRadius: 12,
-    marginTop: 4,
+    marginTop: 8,
+  },
+  gifError: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    marginTop: 8,
+  },
+  errorText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   postActions: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 20,
-    paddingTop: 8,
+    paddingTop: 12,
+    marginTop: 4,
+  },
+  leftActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 24,
+  },
+  rightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    minHeight: 36,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 18,
+  },
+  actionButtonActive: {
+    backgroundColor: 'rgba(255, 69, 0, 0.1)',
   },
   emojiIcon: {
     fontSize: 16,
     opacity: 0.7,
   },
+  activeEmoji: {
+    opacity: 1,
+    transform: [{ scale: 1.1 }],
+  },
   actionText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  trendingBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  trendingText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
 });

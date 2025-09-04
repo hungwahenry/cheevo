@@ -88,36 +88,68 @@ export const useFeed = ({ algorithm, scope }: UseFeedOptions): UseFeedReturn => 
 
   // Toggle post reaction
   const toggleReaction = async (postId: number) => {
+    // Find the post and determine current state
+    const targetPost = posts.find(post => post.id === postId);
+    if (!targetPost) return;
+
+    const wasLiked = targetPost.user_reaction !== null;
+    const reactionsCount = targetPost.reactions_count || 0;
+    
+    // Immediate optimistic update
+    setPosts(prev => prev.map(post => {
+      if (post.id === postId) {
+        if (wasLiked) {
+          // Remove reaction
+          return {
+            ...post,
+            user_reaction: null,
+            reactions_count: Math.max(0, reactionsCount - 1)
+          };
+        } else {
+          // Add reaction
+          return {
+            ...post,
+            user_reaction: { 
+              id: Date.now(), 
+              user_id: authUser?.id || '', 
+              created_at: new Date().toISOString() 
+            },
+            reactions_count: reactionsCount + 1
+          };
+        }
+      }
+      return post;
+    }));
+
     try {
       const response = await postService.toggleReaction(postId);
       
-      if (response.success && response.action) {
-        // Optimistically update the UI
+      if (!response.success) {
+        // Revert optimistic update on failure
         setPosts(prev => prev.map(post => {
           if (post.id === postId) {
-            const wasLiked = post.user_reaction !== null;
-            const reactionsCount = post.reactions_count || 0;
-            
-            if (response.action === 'added' && !wasLiked) {
-              return {
-                ...post,
-                user_reaction: { id: Date.now(), user_id: authUser?.id || '', created_at: new Date().toISOString() },
-                reactions_count: reactionsCount + 1
-              };
-            } else if (response.action === 'removed' && wasLiked) {
-              return {
-                ...post,
-                user_reaction: null,
-                reactions_count: Math.max(0, reactionsCount - 1)
-              };
-            }
+            return {
+              ...post,
+              user_reaction: wasLiked ? targetPost.user_reaction : null,
+              reactions_count: reactionsCount
+            };
           }
           return post;
         }));
-      } else {
         console.error('Reaction toggle failed:', response.error);
       }
     } catch (error) {
+      // Revert optimistic update on error
+      setPosts(prev => prev.map(post => {
+        if (post.id === postId) {
+          return {
+            ...post,
+            user_reaction: wasLiked ? targetPost.user_reaction : null,
+            reactions_count: reactionsCount
+          };
+        }
+        return post;
+      }));
       console.error('Error toggling reaction:', error);
     }
   };
