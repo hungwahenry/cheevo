@@ -11,7 +11,8 @@ import { giphyService } from '@/src/services/giphy.service';
 import { router } from 'expo-router';
 import { Image as ImageIcon, X } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { Alert, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { Alert, StyleSheet, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function CreateScreen() {
@@ -120,7 +121,7 @@ function CreateScreen() {
               <Image 
                 source={{ uri: selectedGif }} 
                 style={styles.gifImage} 
-                resizeMode="cover"
+                contentFit="cover"
               />
               <TouchableOpacity style={styles.removeGif} onPress={removeGif}>
                 <X size={20} color="white" />

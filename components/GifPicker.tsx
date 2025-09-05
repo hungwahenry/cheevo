@@ -1,18 +1,18 @@
-import { View } from '@/components/ui/view';
-import { Text } from '@/components/ui/text';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { giphyService, GiphyGif } from '@/src/services/giphy.service';
+import { Input } from '@/components/ui/input';
+import { Text } from '@/components/ui/text';
+import { View } from '@/components/ui/view';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { GiphyGif, giphyService } from '@/src/services/giphy.service';
+import { Image } from 'expo-image';
 import { Search, X } from 'lucide-react-native';
-import React, { useState, useEffect } from 'react';
-import { 
-  StyleSheet, 
-  Modal, 
-  FlatList, 
-  TouchableOpacity, 
-  Image,
-  ActivityIndicator
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  StyleSheet,
+  TouchableOpacity
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -134,7 +134,7 @@ export const GifPicker: React.FC<GifPickerProps> = ({ visible, onClose, onSelect
                 <Image
                   source={{ uri: item.images.fixed_height.url }}
                   style={styles.gifThumbnail}
-                  resizeMode="cover"
+                  contentFit="cover"
                 />
               </TouchableOpacity>
             )}

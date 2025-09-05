@@ -2,10 +2,11 @@ import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { View } from '@/components/ui/view';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
-import { Dimensions, Image, StyleSheet } from 'react-native'; // Import Image
+import { Dimensions, StyleSheet } from 'react-native'; // Import Image
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -59,7 +60,7 @@ export default function WelcomeScreen() {
           <Image 
             source={require('@/assets/images/logo.png')} // Adjust the path if necessary
             style={styles.logoImage} 
-            resizeMode="contain"
+            contentFit="contain"
           />
         </Animated.View>
 

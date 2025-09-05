@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, TextInput, Alert, TouchableOpacity, Image } from 'react-native';
+import { StyleSheet, TextInput, Alert, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 import { View } from '@/components/ui/view';
 import { Text } from '@/components/ui/text';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -124,7 +125,7 @@ export function CommentInput({
             <Image
               source={{ uri: selectedGif }}
               style={styles.gifImage}
-              resizeMode="cover"
+              contentFit="cover"
             />
             <TouchableOpacity
               onPress={removeGif}

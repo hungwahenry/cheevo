@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { StyleSheet, TouchableOpacity, Alert, Image } from 'react-native';
+import { StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { Image } from 'expo-image';
 import { View } from '@/components/ui/view';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
@@ -158,7 +159,7 @@ export function CommentItem({
           <Image
             source={{ uri: comment.giphy_url }}
             style={styles.gifImage}
-            resizeMode="cover"
+            contentFit="cover"
             onError={() => setImageError(true)}
           />
         )}

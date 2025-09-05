@@ -5,7 +5,8 @@ import { View } from '@/components/ui/view';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useProfileContent } from '@/src/hooks/useProfileContent';
 import React from 'react';
-import { Image, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 
 interface UserCommentsListProps {
   userId: string;
@@ -105,7 +106,7 @@ export function UserCommentsList({ userId }: UserCommentsListProps) {
                 <Image
                   source={{ uri: comment.originalPost.giphy_url }}
                   style={styles.originalPostGif}
-                  resizeMode="cover"
+                  contentFit="cover"
                 />
               )}
               
@@ -135,7 +136,7 @@ export function UserCommentsList({ userId }: UserCommentsListProps) {
               <Image
                 source={{ uri: comment.giphy_url }}
                 style={styles.commentGif}
-                resizeMode="cover"
+                contentFit="cover"
               />
             )}
           </View>

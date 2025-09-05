@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { StyleSheet, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 import { View } from '@/components/ui/view';
 import { Text } from '@/components/ui/text';
 import { Card } from '@/components/ui/card';
@@ -125,7 +126,7 @@ export function PostItem({ post, showUniversity = false, onReaction, onComment, 
         <Image
           source={{ uri: post.giphy_url }}
           style={styles.gifImage}
-          resizeMode="cover"
+          contentFit="cover"
           onError={() => setImageError(true)}
         />
       )}
