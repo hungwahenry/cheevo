@@ -1,10 +1,11 @@
-import React from 'react';
-import { View } from '@/components/ui/view';
-import { Text } from '@/components/ui/text';
+
 import { Card } from '@/components/ui/card';
+import { Text } from '@/components/ui/text';
+import { View } from '@/components/ui/view';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useProfileContent } from '@/src/hooks/useProfileContent';
-import { StyleSheet } from 'react-native';
+import React from 'react';
+import { Image, StyleSheet } from 'react-native';
 
 interface UserCommentsListProps {
   userId: string;
@@ -14,9 +15,19 @@ interface Comment {
   id: string;
   content: string;
   created_at: string;
+  giphy_url?: string | null;
   originalPost?: {
     id: string;
     content: string;
+    giphy_url?: string | null;
+    reactions_count: number;
+    comments_count: number;
+    views_count: number;
+    created_at: string;
+    user_id: string;
+    user_profiles?: {
+      username: string;
+    };
   };
 }
 
@@ -24,6 +35,7 @@ export function UserCommentsList({ userId }: UserCommentsListProps) {
   const mutedColor = useThemeColor({}, 'mutedForeground');
   const backgroundColor = useThemeColor({}, 'background');
   const borderColor = useThemeColor({}, 'border');
+  const textColor = useThemeColor({}, 'foreground');
   
   const { data, isLoading, error } = useProfileContent(userId, 'comments');
   const comments = data as Comment[];
@@ -75,20 +87,57 @@ export function UserCommentsList({ userId }: UserCommentsListProps) {
           {comment.originalPost && (
             <View style={[styles.originalPost, { borderLeftColor: borderColor }]}>
               <Text style={[styles.originalLabel, { color: mutedColor }]}>
-                Commented on:
+                @{comment.originalPost.user_profiles?.username || 'unknown'}
               </Text>
-              <Text 
-                style={[styles.originalContent, { color: mutedColor }]}
-                numberOfLines={2}
-              >
-                {comment.originalPost.content}
-              </Text>
+              
+              {/* Original Post Content */}
+              {comment.originalPost.content && (
+                <Text 
+                  style={[styles.originalContent, { color: mutedColor }]}
+                  numberOfLines={3}
+                >
+                  {comment.originalPost.content}
+                </Text>
+              )}
+              
+              {/* Original Post GIF */}
+              {comment.originalPost.giphy_url && (
+                <Image
+                  source={{ uri: comment.originalPost.giphy_url }}
+                  style={styles.originalPostGif}
+                  resizeMode="cover"
+                />
+              )}
+              
+              {/* Post Stats */}
+              <View style={styles.postStats}>
+                <Text style={[styles.statText, { color: mutedColor }]}>
+                  {comment.originalPost.reactions_count || 0} likes • {comment.originalPost.comments_count || 0} comments
+                </Text>
+              </View>
             </View>
           )}
           
-          <View style={styles.commentContent}>
-            <Text style={styles.emojiIcon}>💬</Text>
-            <Text style={styles.commentText}>{comment.content}</Text>
+          {/* User's Comment */}
+          <View style={styles.userComment}>
+            <View style={styles.commentHeader}>
+              <Text style={[styles.commentLabel, { color: mutedColor }]}>
+                Your comment:
+              </Text>
+            </View>
+            
+            <Text style={[styles.commentText, { color: textColor }]}>
+              {comment.content}
+            </Text>
+            
+            {/* Comment GIF if exists */}
+            {comment.giphy_url && (
+              <Image
+                source={{ uri: comment.giphy_url }}
+                style={styles.commentGif}
+                resizeMode="cover"
+              />
+            )}
           </View>
           
           <Text style={[styles.dateText, { color: mutedColor }]}>
@@ -129,28 +178,54 @@ const styles = StyleSheet.create({
   originalPost: {
     paddingLeft: 12,
     borderLeftWidth: 3,
-    gap: 4,
+    gap: 8,
+    marginBottom: 8,
   },
   originalLabel: {
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   originalContent: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 20,
   },
-  commentContent: {
+  originalPostGif: {
+    width: '100%',
+    height: 120,
+    borderRadius: 8,
+    marginTop: 4,
+  },
+  postStats: {
+    marginTop: 6,
+  },
+  statText: {
+    fontSize: 11,
+  },
+  userComment: {
+    gap: 6,
+  },
+  commentHeader: {
     flexDirection: 'row',
-    gap: 8,
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    gap: 6,
   },
-  emojiIcon: {
-    fontSize: 16,
+  commentLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   commentText: {
     fontSize: 15,
     lineHeight: 22,
-    flex: 1,
+  },
+  commentGif: {
+    width: '100%',
+    height: 140,
+    borderRadius: 8,
+    marginTop: 6,
   },
   dateText: {
     fontSize: 12,

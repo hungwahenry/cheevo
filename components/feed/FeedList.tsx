@@ -5,6 +5,7 @@ import { Text } from '@/components/ui/text';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useFeed } from '@/src/hooks/useFeed';
 import { usePost } from '@/src/hooks/usePost';
+import { useReportModal } from '@/src/providers/ReportProvider';
 import { FeedAlgorithm, FeedScope, feedService } from '@/src/services/feed.service';
 import { PostItem } from './PostItem';
 
@@ -37,6 +38,7 @@ export function FeedList({
   } = useFeed({ algorithm, scope });
 
   const { deletePost } = usePost();
+  const { showReport } = useReportModal();
 
   const handlePostView = async (postId: number) => {
     // Use the hook's trackView method
@@ -55,8 +57,7 @@ export function FeedList({
   };
 
   const handleReportPost = async (postId: number) => {
-    // TODO: Implement report functionality
-    console.log('Report post:', postId);
+    showReport('post', postId);
   };
 
   const handleLoadMore = () => {

@@ -1,5 +1,7 @@
 import { Icon } from '@/components/ui/icon';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { CommentsProvider } from '@/src/providers/CommentsProvider';
+import { ReportProvider } from '@/src/providers/ReportProvider';
 import { PlatformPressable } from '@react-navigation/elements';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
@@ -17,9 +19,11 @@ export default function TabLayout() {
   };
 
   return (
-    <View style={{ flex: 1 }}>
-      <Tabs
-        screenOptions={{
+    <ReportProvider>
+      <CommentsProvider>
+        <View style={{ flex: 1 }}>
+          <Tabs
+          screenOptions={{
         tabBarActiveTintColor: primary,
         headerShown: false,
         tabBarButton: (props) => (
@@ -96,7 +100,9 @@ export default function TabLayout() {
       >
         <Icon name={Plus} size={24} color="white" />
       </Pressable>
-    </View>
+        </View>
+      </CommentsProvider>
+    </ReportProvider>
   );
 }
 

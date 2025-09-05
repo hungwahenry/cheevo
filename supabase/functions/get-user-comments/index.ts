@@ -16,7 +16,7 @@ interface UserComment {
   id: string;
   content: string;
   created_at: string;
-  giphy_url: null;
+  giphy_url: string | null;
   reactions_count: number;
   comments_count: number;
   views_count: number;
@@ -35,6 +35,9 @@ interface UserComment {
     is_trending: boolean;
     created_at: string;
     user_id: string;
+    user_profiles?: {
+      username: string;
+    };
   };
 }
 
@@ -102,6 +105,7 @@ serve(async (req) => {
         id,
         content,
         created_at,
+        giphy_url,
         post_id,
         posts(
           id,
@@ -113,7 +117,8 @@ serve(async (req) => {
           trending_score,
           is_trending,
           created_at,
-          user_id
+          user_id,
+          user_profiles(username)
         )
       `)
       .eq('user_id', userId.trim())
@@ -130,7 +135,7 @@ serve(async (req) => {
       id: comment.id,
       content: comment.content,
       created_at: comment.created_at,
-      giphy_url: null,
+      giphy_url: comment.giphy_url,
       reactions_count: 0,
       comments_count: 0,
       views_count: 0,

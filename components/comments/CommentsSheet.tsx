@@ -1,6 +1,7 @@
 import { Text } from '@/components/ui/text';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useComments } from '@/src/hooks/useComments';
+import { useReportModal } from '@/src/providers/ReportProvider';
 import { X } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, ScrollView, TouchableOpacity, View } from 'react-native';
@@ -30,6 +31,8 @@ export function CommentsSheet({
   const cardColor = useThemeColor({}, 'card');
   const borderColor = useThemeColor({}, 'border');
   const mutedColor = useThemeColor({}, 'mutedForeground');
+  
+  const { showReport } = useReportModal();
 
   const {
     mainComments,
@@ -58,9 +61,7 @@ export function CommentsSheet({
   };
 
   const handleReport = (commentId: number) => {
-    // TODO: Implement comment reporting logic
-    console.log('Report comment:', commentId);
-    // This could call a report service or show a more detailed report modal
+    showReport('comment', commentId);
   };
 
   const title = commentsCount > 0 ? `Comments (${commentsCount})` : 'Comments';

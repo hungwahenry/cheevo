@@ -1,10 +1,10 @@
 import { AlgorithmSelector } from '@/components/feed/AlgorithmSelector';
 import { FeedList } from '@/components/feed/FeedList';
-import { CommentsSheet } from '@/components/comments/CommentsSheet';
 import { Text } from '@/components/ui/text';
 import { View } from '@/components/ui/view';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useAuth } from '@/src/hooks/useAuth';
+import { useCommentsModal } from '@/src/providers/CommentsProvider';
 import { FeedAlgorithm } from '@/src/services/feed.service';
 import { School } from 'lucide-react-native';
 import React, { useState } from 'react';
@@ -18,21 +18,10 @@ export default function FeedScreen() {
   const backgroundColor = useThemeColor({}, 'background');
   const primaryColor = useThemeColor({}, 'primary');
   const { userProfile } = useAuth();
+  const { showComments } = useCommentsModal();
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<FeedAlgorithm>('trending');
-  const [commentsVisible, setCommentsVisible] = useState(false);
-  const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
   
   const campusName = userProfile?.university?.name || 'Campus';
-
-  const handleComment = (postId: number) => {
-    setSelectedPostId(postId);
-    setCommentsVisible(true);
-  };
-
-  const handleCloseComments = () => {
-    setCommentsVisible(false);
-    setSelectedPostId(null);
-  };
 
   return (
     <View style={[styles.container, { backgroundColor }]}>
@@ -56,17 +45,8 @@ export default function FeedScreen() {
         algorithm={selectedAlgorithm}
         scope="campus"
         showUniversity={true}
-        onComment={handleComment}
+        onComment={showComments}
       />
-
-      {/* Comments Modal */}
-      {selectedPostId && (
-        <CommentsSheet
-          isVisible={commentsVisible}
-          onClose={handleCloseComments}
-          postId={selectedPostId}
-        />
-      )}
     </View>
   );
 }

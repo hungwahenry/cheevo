@@ -1,9 +1,9 @@
-import { CommentsSheet } from '@/components/comments/CommentsSheet';
 import { AlgorithmSelector } from '@/components/feed/AlgorithmSelector';
 import { FeedList } from '@/components/feed/FeedList';
 import { Text } from '@/components/ui/text';
 import { View } from '@/components/ui/view';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { useCommentsModal } from '@/src/providers/CommentsProvider';
 import { FeedAlgorithm } from '@/src/services/feed.service';
 import { Globe } from 'lucide-react-native';
 import React, { useState } from 'react';
@@ -16,19 +16,8 @@ export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
   const backgroundColor = useThemeColor({}, 'background');
   const primaryColor = useThemeColor({}, 'primary');
+  const { showComments } = useCommentsModal();
   const [selectedAlgorithm, setSelectedAlgorithm] = useState<FeedAlgorithm>('trending');
-  const [commentsVisible, setCommentsVisible] = useState(false);
-  const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
-
-  const handleComment = (postId: number) => {
-    setSelectedPostId(postId);
-    setCommentsVisible(true);
-  };
-
-  const handleCloseComments = () => {
-    setCommentsVisible(false);
-    setSelectedPostId(null);
-  };
 
   return (
     <View style={[styles.container, { backgroundColor }]}>
@@ -52,17 +41,8 @@ export default function ExploreScreen() {
         algorithm={selectedAlgorithm}
         scope="global"
         showUniversity={true}
-        onComment={handleComment}
+        onComment={showComments}
       />
-
-      {/* Comments Modal */}
-      {selectedPostId && (
-        <CommentsSheet
-          isVisible={commentsVisible}
-          onClose={handleCloseComments}
-          postId={selectedPostId}
-        />
-      )}
     </View>
   );
 }

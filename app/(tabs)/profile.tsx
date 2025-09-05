@@ -1,18 +1,18 @@
-import React, { useState } from 'react';
-import { StyleSheet, RefreshControl } from 'react-native';
-import { View } from '@/components/ui/view';
-import { Text } from '@/components/ui/text';
-import { Spinner } from '@/components/ui/spinner';
-import { useThemeColor } from '@/hooks/useThemeColor';
-import { useAuth } from '@/src/hooks/useAuth';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { ProfileTabs, ProfileTabType } from '@/components/profile/ProfileTabs';
-import { UserPostsList } from '@/components/profile/UserPostsList';
 import { UserCommentsList } from '@/components/profile/UserCommentsList';
 import { UserLikesList } from '@/components/profile/UserLikesList';
-import { CommentsSheet } from '@/components/comments/CommentsSheet';
+import { UserPostsList } from '@/components/profile/UserPostsList';
+import { Spinner } from '@/components/ui/spinner';
+import { Text } from '@/components/ui/text';
+import { View } from '@/components/ui/view';
+import { useThemeColor } from '@/hooks/useThemeColor';
+import { useAuth } from '@/src/hooks/useAuth';
 import { useCurrentUserProfile } from '@/src/hooks/useProfile';
+import { useCommentsModal } from '@/src/providers/CommentsProvider';
+import React, { useState } from 'react';
+import { RefreshControl, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -21,25 +21,14 @@ export default function ProfileScreen() {
   const primaryColor = useThemeColor({}, 'primary');
   const { userProfile } = useAuth();
   const { profile, isLoading: isProfileLoading, error: profileError, refresh: refreshProfile } = useCurrentUserProfile();
+  const { showComments } = useCommentsModal();
   const [activeTab, setActiveTab] = useState<ProfileTabType>('posts');
   const [refreshing, setRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [commentsVisible, setCommentsVisible] = useState(false);
-  const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
 
   const handleEditProfile = () => {
     // TODO: Navigate to edit profile modal/screen
     console.log('Edit profile pressed');
-  };
-
-  const handleComment = (postId: number) => {
-    setSelectedPostId(postId);
-    setCommentsVisible(true);
-  };
-
-  const handleCloseComments = () => {
-    setCommentsVisible(false);
-    setSelectedPostId(null);
   };
 
   const handleRefresh = async () => {
@@ -75,11 +64,11 @@ export default function ProfileScreen() {
     
     switch (activeTab) {
       case 'posts':
-        return <UserPostsList key={`posts-${refreshKey}`} userId={profile.id} onComment={handleComment} />;
+        return <UserPostsList key={`posts-${refreshKey}`} userId={profile.id} onComment={showComments} />;
       case 'comments':
         return <UserCommentsList key={`comments-${refreshKey}`} userId={profile.id} />;
       case 'likes':
-        return <UserLikesList key={`likes-${refreshKey}`} userId={profile.id} onComment={handleComment} />;
+        return <UserLikesList key={`likes-${refreshKey}`} userId={profile.id} onComment={showComments} />;
       default:
         return null;
     }
@@ -127,15 +116,6 @@ export default function ProfileScreen() {
           {renderTabContent()}
         </ProfileTabs>
       ) : null}
-      
-      {/* Comments Modal */}
-      {selectedPostId && (
-        <CommentsSheet
-          isVisible={commentsVisible}
-          onClose={handleCloseComments}
-          postId={selectedPostId}
-        />
-      )}
     </View>
   );
 }
@@ -170,5 +150,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     maxWidth: 280,
+
   },
 });
