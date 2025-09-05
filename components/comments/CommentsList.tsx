@@ -18,6 +18,8 @@ interface CommentsListProps {
   onRefresh: () => void;
   onReplyPress: (commentId: number, username: string) => void;
   onLoadMore: () => void;
+  deleteComment: (commentId: number) => Promise<{ success: boolean; message?: string }>;
+  onReport?: (commentId: number) => void;
 }
 
 export function CommentsList({ 
@@ -29,7 +31,9 @@ export function CommentsList({
   hasMore,
   onRefresh, 
   onReplyPress,
-  onLoadMore
+  onLoadMore,
+  deleteComment,
+  onReport
 }: CommentsListProps) {
   const mutedColor = useThemeColor({}, 'mutedForeground');
 
@@ -64,8 +68,9 @@ export function CommentsList({
             comment={comment}
             replies={getRepliesForComment(comment.id)}
             replyCount={getReplyCount(comment.id)}
-            onRefresh={onRefresh}
             onReplyPress={onReplyPress}
+            deleteComment={deleteComment}
+            onReport={onReport}
           />
           
           {/* Separator between main comments */}

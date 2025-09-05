@@ -7,16 +7,16 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { UserAvatar } from '@/components/profile/UserAvatar';
 import { Comment } from '@/src/services/comment.service';
 import { useAuth } from '@/src/hooks/useAuth';
-import { useDeleteComment } from '@/src/hooks/useDeleteComment';
-import { Reply, MoreVertical, Trash2, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { Reply, MoreVertical, Trash2, ChevronDown, ChevronUp, Flag } from 'lucide-react-native';
 
 interface CommentItemProps {
   comment: Comment;
   replies?: Comment[]; // Replies to this comment
   replyCount?: number; // Total reply count
   isReply?: boolean; // Is this a reply itself?
-  onRefresh: () => void;
   onReplyPress: (commentId: number, username: string) => void;
+  deleteComment: (commentId: number) => Promise<{ success: boolean; message?: string }>;
+  onReport?: (commentId: number) => void;
 }
 
 export function CommentItem({ 
@@ -24,8 +24,9 @@ export function CommentItem({
   replies = [],
   replyCount = 0,
   isReply = false, 
-  onRefresh, 
-  onReplyPress
+  onReplyPress,
+  deleteComment,
+  onReport
 }: CommentItemProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [repliesExpanded, setRepliesExpanded] = useState(false);
@@ -36,7 +37,7 @@ export function CommentItem({
   const backgroundColor = useThemeColor({}, 'card');
   
   const { userProfile } = useAuth();
-  const { deleteComment, isDeleting } = useDeleteComment();
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const isOwner = userProfile?.id === comment.user_id;
   const hasReplies = replyCount > 0;
@@ -70,12 +71,31 @@ export function CommentItem({
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
+            setIsDeleting(true);
             const result = await deleteComment(comment.id);
-            if (result.success) {
-              onRefresh();
-            } else {
-              Alert.alert('Error', result.message);
+            if (!result.success) {
+              Alert.alert('Error', result.message || 'Failed to delete comment');
             }
+            setIsDeleting(false);
+            // No need to call onRefresh - optimistic updates handle it
+          },
+        },
+      ]
+    );
+    setShowMenu(false);
+  };
+
+  const handleReport = () => {
+    Alert.alert(
+      'Report Comment',
+      'Are you sure you want to report this comment?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Report',
+          style: 'destructive',
+          onPress: () => {
+            onReport?.(comment.id);
           },
         },
       ]
@@ -154,7 +174,7 @@ export function CommentItem({
       {/* Menu */}
       {showMenu && (
         <View style={[styles.menu, { backgroundColor }]}>
-          {isOwner && (
+          {isOwner ? (
             <TouchableOpacity 
               style={styles.menuItem}
               onPress={handleDelete}
@@ -162,6 +182,14 @@ export function CommentItem({
             >
               <Trash2 size={16} color="#ef4444" />
               <Text style={styles.deleteText}>Delete</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity 
+              style={styles.menuItem}
+              onPress={handleReport}
+            >
+              <Flag size={16} color="#ef4444" />
+              <Text style={styles.deleteText}>Report</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -175,8 +203,9 @@ export function CommentItem({
               <CommentItem 
                 comment={reply} 
                 isReply 
-                onRefresh={onRefresh}
                 onReplyPress={onReplyPress}
+                deleteComment={deleteComment}
+                onReport={onReport}
               />
             </View>
           ))}

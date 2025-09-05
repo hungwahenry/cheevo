@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, RefreshControl } from 'react-native';
 import { View } from '@/components/ui/view';
 import { Text } from '@/components/ui/text';
+import { Spinner } from '@/components/ui/spinner';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useAuth } from '@/src/hooks/useAuth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +11,7 @@ import { ProfileTabs, ProfileTabType } from '@/components/profile/ProfileTabs';
 import { UserPostsList } from '@/components/profile/UserPostsList';
 import { UserCommentsList } from '@/components/profile/UserCommentsList';
 import { UserLikesList } from '@/components/profile/UserLikesList';
+import { CommentsSheet } from '@/components/comments/CommentsSheet';
 import { useCurrentUserProfile } from '@/src/hooks/useProfile';
 
 export default function ProfileScreen() {
@@ -18,20 +20,32 @@ export default function ProfileScreen() {
   const mutedColor = useThemeColor({}, 'mutedForeground');
   const primaryColor = useThemeColor({}, 'primary');
   const { userProfile } = useAuth();
-  const profileHook = useCurrentUserProfile();
+  const { profile, isLoading: isProfileLoading, error: profileError, refresh: refreshProfile } = useCurrentUserProfile();
   const [activeTab, setActiveTab] = useState<ProfileTabType>('posts');
   const [refreshing, setRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [commentsVisible, setCommentsVisible] = useState(false);
+  const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
 
   const handleEditProfile = () => {
     // TODO: Navigate to edit profile modal/screen
     console.log('Edit profile pressed');
   };
 
+  const handleComment = (postId: number) => {
+    setSelectedPostId(postId);
+    setCommentsVisible(true);
+  };
+
+  const handleCloseComments = () => {
+    setCommentsVisible(false);
+    setSelectedPostId(null);
+  };
+
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await profileHook.refresh();
+      await refreshProfile();
       // Force all tabs to reload by changing key
       setRefreshKey(prev => prev + 1);
     } catch (error) {
@@ -57,15 +71,15 @@ export default function ProfileScreen() {
   }
 
   const renderTabContent = () => {
-    if (!profileHook.profile) return null;
+    if (!profile) return null;
     
     switch (activeTab) {
       case 'posts':
-        return <UserPostsList key={`posts-${refreshKey}`} userId={profileHook.profile.id} />;
+        return <UserPostsList key={`posts-${refreshKey}`} userId={profile.id} onComment={handleComment} />;
       case 'comments':
-        return <UserCommentsList key={`comments-${refreshKey}`} userId={profileHook.profile.id} />;
+        return <UserCommentsList key={`comments-${refreshKey}`} userId={profile.id} />;
       case 'likes':
-        return <UserLikesList key={`likes-${refreshKey}`} userId={profileHook.profile.id} />;
+        return <UserLikesList key={`likes-${refreshKey}`} userId={profile.id} onComment={handleComment} />;
       default:
         return null;
     }
@@ -77,31 +91,50 @@ export default function ProfileScreen() {
         <Text variant="title" style={styles.headerTitle}>Profile</Text>
       </View>
       
-      {profileHook.profile && (
+      {isProfileLoading ? (
+        <View style={styles.loadingContainer}>
+          <Spinner size="lg" />
+          <Text style={[styles.loadingText, { color: mutedColor }]}>Loading profile...</Text>
+        </View>
+      ) : profileError ? (
+        <View style={styles.loadingContainer}>
+          <Text style={[styles.errorText, { color: '#ef4444' }]}>Failed to load profile</Text>
+          <Text style={[styles.errorDetails, { color: mutedColor }]}>{profileError}</Text>
+        </View>
+      ) : profile ? (
         <ProfileTabs
           activeTab={activeTab}
           onTabChange={setActiveTab}
-          postsCount={profileHook.profile.postsCount || 0}
-          commentsCount={profileHook.profile.commentsCount || 0}
-          likesCount={profileHook.profile.reactionsReceived || 0}
+          postsCount={profile.postsCount || 0}
+          commentsCount={profile.commentsCount || 0}
+          likesCount={profile.reactionsReceived || 0}
           headerComponent={
             <ProfileHeader
-              profile={profileHook.profile}
+              profile={profile}
               isOwnProfile={true}
               onEditPress={handleEditProfile}
             />
           }
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={[primaryColor]}
-            tintColor={primaryColor}
-          />
-        }
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[primaryColor]}
+              tintColor={primaryColor}
+            />
+          }
         >
-        {renderTabContent()}
-      </ProfileTabs>
+          {renderTabContent()}
+        </ProfileTabs>
+      ) : null}
+      
+      {/* Comments Modal */}
+      {selectedPostId && (
+        <CommentsSheet
+          isVisible={commentsVisible}
+          onClose={handleCloseComments}
+          postId={selectedPostId}
+        />
       )}
     </View>
   );
@@ -126,5 +159,16 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 14,
+    marginTop: 12,
+  },
+  errorText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  errorDetails: {
+    fontSize: 14,
+    textAlign: 'center',
+    maxWidth: 280,
   },
 });

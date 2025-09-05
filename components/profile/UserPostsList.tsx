@@ -9,9 +9,10 @@ import { StyleSheet } from 'react-native';
 
 interface UserPostsListProps {
   userId: string;
+  onComment?: (postId: number) => void;
 }
 
-export function UserPostsList({ userId }: UserPostsListProps) {
+export function UserPostsList({ userId, onComment }: UserPostsListProps) {
   const mutedColor = useThemeColor({}, 'mutedForeground');
   const backgroundColor = useThemeColor({}, 'background');
   
@@ -55,6 +56,7 @@ export function UserPostsList({ userId }: UserPostsListProps) {
           key={post.id} 
           post={post}
           onReaction={toggleReaction}
+          onComment={onComment}
           onView={() => trackView(post.id)}
         />
       ))}

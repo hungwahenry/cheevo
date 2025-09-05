@@ -40,11 +40,13 @@ export function CommentsSheet({
     hasMore,
     loadMore,
     refresh,
+    createComment,
+    deleteComment,
   } = useComments(postId);
 
   const handleCommentCreated = () => {
     setReplyContext(undefined);
-    refresh();
+    // No need to call refresh() since optimistic updates handle it
   };
 
   const handleReplyPress = (commentId: number, username: string) => {
@@ -53,6 +55,12 @@ export function CommentsSheet({
 
   const handleCancelReply = () => {
     setReplyContext(undefined);
+  };
+
+  const handleReport = (commentId: number) => {
+    // TODO: Implement comment reporting logic
+    console.log('Report comment:', commentId);
+    // This could call a report service or show a more detailed report modal
   };
 
   const title = commentsCount > 0 ? `Comments (${commentsCount})` : 'Comments';
@@ -101,15 +109,17 @@ export function CommentsSheet({
               onRefresh={refresh}
               onReplyPress={handleReplyPress}
               onLoadMore={loadMore}
+              deleteComment={deleteComment}
+              onReport={handleReport}
             />
           </ScrollView>
 
           {/* Comment Input */}
           <CommentInput
-            postId={postId}
             replyContext={replyContext}
             onCommentCreated={handleCommentCreated}
             onCancelReply={handleCancelReply}
+            createComment={createComment}
           />
         </View>
       </KeyboardAvoidingView>

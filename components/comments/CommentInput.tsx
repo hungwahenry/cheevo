@@ -3,7 +3,6 @@ import { StyleSheet, TextInput, Alert, TouchableOpacity } from 'react-native';
 import { View } from '@/components/ui/view';
 import { Text } from '@/components/ui/text';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import { useCreateComment } from '@/src/hooks/useCreateComment';
 import { Send, X } from 'lucide-react-native';
 
 interface ReplyContext {
@@ -12,17 +11,17 @@ interface ReplyContext {
 }
 
 interface CommentInputProps {
-  postId: number;
   replyContext?: ReplyContext;
   onCommentCreated: () => void;
   onCancelReply?: () => void;
+  createComment: (content: string, parentCommentId?: number) => Promise<{ success: boolean; message?: string }>;
 }
 
 export function CommentInput({ 
-  postId, 
   replyContext,
   onCommentCreated,
-  onCancelReply
+  onCancelReply,
+  createComment
 }: CommentInputProps) {
   const [content, setContent] = useState('');
   
@@ -37,25 +36,37 @@ export function CommentInput({
   const textColor = useThemeColor({}, 'foreground');
   const primaryColor = useThemeColor({}, 'primary');
   
-  const { createComment, isCreating } = useCreateComment(postId);
+  const [isCreating, setIsCreating] = useState(false);
   const isReplyMode = !!replyContext;
 
   const handleSubmit = async () => {
     if (!content.trim() || isCreating) return;
 
+    const commentContent = content.trim();
+    
+    // 1. IMMEDIATELY clear input and re-enable for better UX (optimistic update)
+    setContent('');
+    onCommentCreated();
+    
+    // Brief loading state just for visual feedback on send button
+    setIsCreating(true);
+    setTimeout(() => setIsCreating(false), 300);
+    
+    // API call happens in background without blocking UI
     try {
       const result = await createComment(
-        content.trim(), 
+        commentContent, 
         replyContext?.commentId
       );
       
-      if (result.success) {
-        setContent('');
-        onCommentCreated();
-      } else {
-        Alert.alert('Error', result.message);
+      if (!result.success) {
+        // If failed, restore the content and show error
+        setContent(commentContent);
+        Alert.alert('Error', result.message || 'Failed to post comment');
       }
     } catch (error) {
+      // If error, restore the content and show error
+      setContent(commentContent);
       Alert.alert('Error', 'Failed to post comment');
     }
   };

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { commentService, Comment } from '@/src/services/comment.service';
+import { useAuth } from './useAuth';
 
 export interface UseCommentsResult {
   // Data
@@ -16,9 +17,9 @@ export interface UseCommentsResult {
   loadMore: () => Promise<void>;
   refresh: () => Promise<void>;
   
-  // Optimistic updates
-  addOptimisticComment: (comment: Comment) => void;
-  removeOptimisticComment: (commentId: number) => void;
+  // Optimistic comment operations
+  createComment: (content: string, parentCommentId?: number) => Promise<{ success: boolean; message?: string }>;
+  deleteComment: (commentId: number) => Promise<{ success: boolean; message?: string }>;
   
   // Utility functions
   getRepliesForComment: (commentId: number) => Comment[];
@@ -26,6 +27,7 @@ export interface UseCommentsResult {
 }
 
 export function useComments(postId: number): UseCommentsResult {
+  const { userProfile, authUser } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -110,22 +112,111 @@ export function useComments(postId: number): UseCommentsResult {
     }
   }, [postId]);
 
-  // Optimistic updates
-  const addOptimisticComment = useCallback((comment: Comment) => {
-    setComments(prev => {
-      // Check if comment already exists (avoid duplicates)
-      if (prev.some(c => c.id === comment.id)) {
-        return prev;
-      }
-      return [...prev, comment];
-    });
-    setTotalCount(prev => prev + 1);
-  }, []);
+  // Optimistic comment creation
+  const createComment = useCallback(async (content: string, parentCommentId?: number) => {
+    if (!content.trim() || !userProfile || !authUser) {
+      return { success: false, message: 'Invalid comment or user not authenticated' };
+    }
 
-  const removeOptimisticComment = useCallback((commentId: number) => {
-    setComments(prev => prev.filter(c => c.id !== commentId));
-    setTotalCount(prev => Math.max(0, prev - 1));
-  }, []);
+    // Create optimistic comment with temporary negative ID
+    const optimisticId = -Date.now(); // Negative ID to avoid conflicts with real IDs
+    const optimisticComment: Comment = {
+      id: optimisticId,
+      content: content.trim(),
+      giphy_url: null,
+      post_id: postId,
+      parent_comment_id: parentCommentId || null,
+      user_id: authUser.id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      user_profiles: {
+        username: userProfile.username,
+        avatar_url: userProfile.avatarUrl || null,
+        university_id: userProfile.universityId
+      }
+    };
+
+    // 1. IMMEDIATE optimistic update
+    setComments(prev => [...prev, optimisticComment]);
+    setTotalCount(prev => prev + 1);
+
+    try {
+      // 2. Call API
+      const response = await commentService.createComment({
+        content: content.trim(),
+        postId,
+        parentCommentId
+      });
+
+      if (response.success && response.commentId) {
+        // 3. Replace optimistic comment with real one
+        setComments(prev => prev.map(comment => 
+          comment.id === optimisticId 
+            ? { ...comment, id: response.commentId! }
+            : comment
+        ));
+        return { success: true };
+      } else {
+        // 4. REVERT on failure
+        setComments(prev => prev.filter(comment => comment.id !== optimisticId));
+        setTotalCount(prev => Math.max(0, prev - 1));
+        return { success: false, message: response.message };
+      }
+    } catch (error) {
+      // 4. REVERT on error
+      setComments(prev => prev.filter(comment => comment.id !== optimisticId));
+      setTotalCount(prev => Math.max(0, prev - 1));
+      console.error('Error creating comment:', error);
+      return { success: false, message: 'Failed to create comment' };
+    }
+  }, [postId, userProfile, authUser]);
+
+  // Optimistic comment deletion
+  const deleteComment = useCallback(async (commentId: number) => {
+    // Find the comment to delete
+    const targetComment = comments.find(c => c.id === commentId);
+    if (!targetComment) {
+      return { success: false, message: 'Comment not found' };
+    }
+
+    // Also find any replies to this comment
+    const repliesToDelete = comments.filter(c => c.parent_comment_id === commentId);
+    const allCommentsToDelete = [targetComment, ...repliesToDelete];
+
+    // 1. IMMEDIATE optimistic update
+    setComments(prev => prev.filter(comment => 
+      comment.id !== commentId && comment.parent_comment_id !== commentId
+    ));
+    setTotalCount(prev => Math.max(0, prev - allCommentsToDelete.length));
+
+    try {
+      // 2. Call API
+      const response = await commentService.deleteComment(commentId);
+
+      if (response.success) {
+        return { success: true };
+      } else {
+        // 3. REVERT on failure
+        setComments(prev => {
+          // Re-add all deleted comments in their original positions
+          const restored = [...prev, ...allCommentsToDelete];
+          // Sort by created_at to maintain order
+          return restored.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        });
+        setTotalCount(prev => prev + allCommentsToDelete.length);
+        return { success: false, message: response.message };
+      }
+    } catch (error) {
+      // 3. REVERT on error
+      setComments(prev => {
+        const restored = [...prev, ...allCommentsToDelete];
+        return restored.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      });
+      setTotalCount(prev => prev + allCommentsToDelete.length);
+      console.error('Error deleting comment:', error);
+      return { success: false, message: 'Failed to delete comment' };
+    }
+  }, [comments]);
 
   return {
     comments,
@@ -138,8 +229,8 @@ export function useComments(postId: number): UseCommentsResult {
     loadComments: () => loadComments(true),
     loadMore,
     refresh,
-    addOptimisticComment,
-    removeOptimisticComment,
+    createComment,
+    deleteComment,
     getRepliesForComment,
     getReplyCount
   };
