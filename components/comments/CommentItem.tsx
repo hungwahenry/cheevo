@@ -42,6 +42,7 @@ export function CommentItem({
   const isOwner = userProfile?.id === comment.user_id;
   const hasReplies = replyCount > 0;
   const INITIAL_REPLIES_COUNT = 3;
+  const isOptimistic = comment.id < 0; // Negative IDs are optimistic comments
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -57,7 +58,9 @@ export function CommentItem({
   };
 
   const handleReply = () => {
-    onReplyPress(comment.id, comment.user_profiles.username);
+    // Always use the top-level comment as parent, even when replying to a reply
+    const topLevelCommentId = comment.parent_comment_id || comment.id;
+    onReplyPress(topLevelCommentId, comment.user_profiles.username);
     setShowMenu(false);
   };
 
@@ -138,8 +141,9 @@ export function CommentItem({
         <TouchableOpacity 
           style={styles.menuButton}
           onPress={() => setShowMenu(!showMenu)}
+          disabled={isOptimistic}
         >
-          <MoreVertical size={16} color={mutedColor} />
+          <MoreVertical size={16} color={isOptimistic ? mutedColor + '50' : mutedColor} />
         </TouchableOpacity>
       </View>
 
@@ -150,9 +154,9 @@ export function CommentItem({
         
         <View style={styles.actions}>
           {/* All comments can be replied to */}
-          <Button variant="ghost" size="sm" onPress={handleReply}>
-            <Reply size={14} color={mutedColor} />
-            <Text style={[styles.actionText, { color: mutedColor }]}>Reply</Text>
+          <Button variant="ghost" size="sm" onPress={handleReply} disabled={isOptimistic}>
+            <Reply size={14} color={isOptimistic ? mutedColor + '50' : mutedColor} />
+            <Text style={[styles.actionText, { color: isOptimistic ? mutedColor + '50' : mutedColor }]}>Reply</Text>
           </Button>
           
           {/* Only top-level comments show view replies button */}

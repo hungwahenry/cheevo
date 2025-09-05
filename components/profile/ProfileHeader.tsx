@@ -32,14 +32,14 @@ export function ProfileHeader({ profile, isOwnProfile = false, onEditPress }: Pr
           <View style={styles.nameRow}>
             <View style={styles.nameWithTrending}>
               <Text variant="heading" style={styles.username}>
-                @{profile.username || 'Unknown'}
+                @{String(profile.username || 'Unknown')}
               </Text>
-              {profile.trendingScore && profile.trendingScore > 0 && (
+              {profile.trendingScore && Number(profile.trendingScore) > 0 && (
                 <View style={[styles.trendingPill, { backgroundColor: useThemeColor({}, 'primary') }]}>
                   <Text style={styles.trendingText}>
-                    🔥 {profile.trendingScore >= 1000 
-                      ? `${(profile.trendingScore / 1000).toFixed(1)}K` 
-                      : profile.trendingScore}
+                    🔥 {Number(profile.trendingScore) >= 1000 
+                      ? `${(Number(profile.trendingScore) / 1000).toFixed(1)}K` 
+                      : Number(profile.trendingScore)}
                   </Text>
                 </View>
               )}

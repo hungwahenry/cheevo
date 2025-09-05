@@ -12,6 +12,7 @@ import { ProfileTabs, ProfileTabType } from '@/components/profile/ProfileTabs';
 import { UserPostsList } from '@/components/profile/UserPostsList';
 import { UserCommentsList } from '@/components/profile/UserCommentsList';
 import { UserLikesList } from '@/components/profile/UserLikesList';
+import { CommentsSheet } from '@/components/comments/CommentsSheet';
 
 export default function UserProfileScreen() {
   const backgroundColor = useThemeColor({}, 'background');
@@ -23,6 +24,8 @@ export default function UserProfileScreen() {
   const [activeTab, setActiveTab] = useState<ProfileTabType>('posts');
   const [refreshing, setRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [commentsVisible, setCommentsVisible] = useState(false);
+  const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -37,17 +40,27 @@ export default function UserProfileScreen() {
     }
   };
 
+  const handleComment = (postId: number) => {
+    setSelectedPostId(postId);
+    setCommentsVisible(true);
+  };
+
+  const handleCloseComments = () => {
+    setCommentsVisible(false);
+    setSelectedPostId(null);
+  };
+
 
   const renderTabContent = () => {
     if (!userId) return null;
     
     switch (activeTab) {
       case 'posts':
-        return <UserPostsList key={`posts-${refreshKey}`} userId={userId} />;
+        return <UserPostsList key={`posts-${refreshKey}`} userId={userId} onComment={handleComment} />;
       case 'comments':
         return <UserCommentsList key={`comments-${refreshKey}`} userId={userId} />;
       case 'likes':
-        return <UserLikesList key={`likes-${refreshKey}`} userId={userId} />;
+        return <UserLikesList key={`likes-${refreshKey}`} userId={userId} onComment={handleComment} />;
       default:
         return null;
     }
@@ -119,6 +132,15 @@ export default function UserProfileScreen() {
           </ProfileTabs>
         </>
       ) : null}
+      
+      {/* Comments Modal */}
+      {selectedPostId && (
+        <CommentsSheet
+          isVisible={commentsVisible}
+          onClose={handleCloseComments}
+          postId={selectedPostId}
+        />
+      )}
     </View>
   );
 }

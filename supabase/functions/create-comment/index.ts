@@ -133,10 +133,6 @@ serve(async (req) => {
         throw new Error('Parent comment does not belong to this post');
       }
 
-      // Ensure we're not creating a 3rd level (parent must be top-level)
-      if (parentComment.parent_comment_id !== null) {
-        throw new Error('Can only reply to top-level comments');
-      }
     }
 
     // Create comment (simple 2-level structure)
