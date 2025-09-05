@@ -98,7 +98,7 @@ function CreateScreen() {
             value={content}
             onChangeText={setContent}
             maxLength={maxLength}
-            rows={6}
+            rows={4}
             rightComponent={() => (
               <Text 
                 variant="caption" 
@@ -111,6 +111,7 @@ function CreateScreen() {
               </Text>
             )}
             containerStyle={styles.textInput}
+            inputStyle={styles.textInputInner}
           />
 
           {/* Selected GIF Preview */}
@@ -184,6 +185,10 @@ const styles = StyleSheet.create({
   },
   textInput: {
     marginBottom: 0,
+  },
+  textInputInner: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
   },
   charCounter: {
     fontSize: 12,

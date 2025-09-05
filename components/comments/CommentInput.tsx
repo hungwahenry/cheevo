@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, TextInput, Alert, TouchableOpacity } from 'react-native';
+import { StyleSheet, TextInput, Alert, TouchableOpacity, Image } from 'react-native';
 import { View } from '@/components/ui/view';
 import { Text } from '@/components/ui/text';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import { Send, X } from 'lucide-react-native';
+import { Send, X, Image as ImageIcon } from 'lucide-react-native';
+import { GifPicker } from '@/components/GifPicker';
+import { giphyService, GiphyGif } from '@/src/services/giphy.service';
 
 interface ReplyContext {
   commentId: number;
@@ -14,7 +16,7 @@ interface CommentInputProps {
   replyContext?: ReplyContext;
   onCommentCreated: () => void;
   onCancelReply?: () => void;
-  createComment: (content: string, parentCommentId?: number) => Promise<{ success: boolean; message?: string }>;
+  createComment: (content: string, parentCommentId?: number, giphyUrl?: string) => Promise<{ success: boolean; message?: string }>;
 }
 
 export function CommentInput({ 
@@ -24,10 +26,14 @@ export function CommentInput({
   createComment
 }: CommentInputProps) {
   const [content, setContent] = useState('');
+  const [selectedGif, setSelectedGif] = useState<string | null>(null);
+  const [showGifPicker, setShowGifPicker] = useState(false);
   
   useEffect(() => {
     const initialContent = replyContext ? `@${replyContext.username} ` : '';
     setContent(initialContent);
+    // Clear GIF when reply context changes
+    setSelectedGif(null);
   }, [replyContext]);
   
   const backgroundColor = useThemeColor({}, 'card');
@@ -39,13 +45,24 @@ export function CommentInput({
   const [isCreating, setIsCreating] = useState(false);
   const isReplyMode = !!replyContext;
 
+  const handleSelectGif = (gif: GiphyGif) => {
+    const optimizedUrl = giphyService.getOptimizedGifUrl(gif, 'fixed_height');
+    setSelectedGif(optimizedUrl);
+  };
+
+  const removeGif = () => {
+    setSelectedGif(null);
+  };
+
   const handleSubmit = async () => {
-    if (!content.trim() || isCreating) return;
+    if ((!content.trim() && !selectedGif) || isCreating) return;
 
     const commentContent = content.trim();
+    const gifUrl = selectedGif;
     
     // 1. IMMEDIATELY clear input and re-enable for better UX (optimistic update)
     setContent('');
+    setSelectedGif(null);
     onCommentCreated();
     
     // Brief loading state just for visual feedback on send button
@@ -55,23 +72,26 @@ export function CommentInput({
     // API call happens in background without blocking UI
     try {
       const result = await createComment(
-        commentContent, 
-        replyContext?.commentId
+        commentContent || (gifUrl ? ' ' : ''), // Ensure some content if only GIF
+        replyContext?.commentId,
+        gifUrl || undefined
       );
       
       if (!result.success) {
         // If failed, restore the content and show error
         setContent(commentContent);
+        setSelectedGif(gifUrl);
         Alert.alert('Error', result.message || 'Failed to post comment');
       }
     } catch (error) {
       // If error, restore the content and show error
       setContent(commentContent);
+      setSelectedGif(gifUrl);
       Alert.alert('Error', 'Failed to post comment');
     }
   };
 
-  const canSubmit = content.trim().length > 0 && !isCreating;
+  const canSubmit = (content.trim().length > 0 || selectedGif) && !isCreating;
   const placeholder = isReplyMode 
     ? `Reply to @${replyContext.username}...` 
     : 'Add a comment...';
@@ -97,6 +117,25 @@ export function CommentInput({
         </View>
       )}
       
+      {/* Selected GIF Preview */}
+      {selectedGif && (
+        <View style={styles.gifPreviewContainer}>
+          <View style={styles.gifPreview}>
+            <Image
+              source={{ uri: selectedGif }}
+              style={styles.gifImage}
+              resizeMode="cover"
+            />
+            <TouchableOpacity
+              onPress={removeGif}
+              style={[styles.removeGifButton, { backgroundColor: mutedColor }]}
+            >
+              <X size={16} color="white" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+      
       {/* Input Container */}
       <View style={[styles.inputContainer, { borderColor }]}>
         <TextInput
@@ -112,6 +151,14 @@ export function CommentInput({
           returnKeyType="send"
           onSubmitEditing={canSubmit ? handleSubmit : undefined}
         />
+        
+        <TouchableOpacity
+          onPress={() => setShowGifPicker(true)}
+          disabled={isCreating}
+          style={[styles.gifButton, { opacity: isCreating ? 0.5 : 1 }]}
+        >
+          <ImageIcon size={20} color={mutedColor} />
+        </TouchableOpacity>
         
         <TouchableOpacity
           onPress={handleSubmit}
@@ -139,6 +186,13 @@ export function CommentInput({
           {content.length}/280
         </Text>
       )}
+      
+      {/* GIF Picker Modal */}
+      <GifPicker
+        visible={showGifPicker}
+        onClose={() => setShowGifPicker(false)}
+        onSelectGif={handleSelectGif}
+      />
     </View>
   );
 }
@@ -200,5 +254,35 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'right',
     marginTop: 8,
+  },
+  gifPreviewContainer: {
+    marginBottom: 12,
+  },
+  gifPreview: {
+    position: 'relative',
+    alignSelf: 'flex-start',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  gifImage: {
+    width: 120,
+    height: 80,
+    borderRadius: 12,
+  },
+  removeGifButton: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  gifButton: {
+    padding: 8,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

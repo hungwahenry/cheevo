@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { StyleSheet, TouchableOpacity, Alert, Image } from 'react-native';
 import { View } from '@/components/ui/view';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,7 @@ export function CommentItem({
   const [showMenu, setShowMenu] = useState(false);
   const [repliesExpanded, setRepliesExpanded] = useState(false);
   const [showAllReplies, setShowAllReplies] = useState(false);
+  const [imageError, setImageError] = useState(false);
   
   const mutedColor = useThemeColor({}, 'mutedForeground');
   const textColor = useThemeColor({}, 'foreground');
@@ -151,6 +152,23 @@ export function CommentItem({
         <Text style={[styles.text, { color: textColor }]}>
           {comment.content}
         </Text>
+        
+        {/* GIF if present */}
+        {comment.giphy_url && !imageError && (
+          <Image
+            source={{ uri: comment.giphy_url }}
+            style={styles.gifImage}
+            resizeMode="cover"
+            onError={() => setImageError(true)}
+          />
+        )}
+        
+        {/* Show error state if GIF failed to load */}
+        {comment.giphy_url && imageError && (
+          <View style={[styles.gifError, { borderColor: mutedColor + '30' }]}>
+            <Text style={[styles.errorText, { color: mutedColor }]}>GIF unavailable</Text>
+          </View>
+        )}
         
         <View style={styles.actions}>
           {/* All comments can be replied to */}
@@ -316,6 +334,31 @@ const styles = StyleSheet.create({
   },
   showMoreText: {
     fontSize: 11,
+    fontWeight: '500',
+  },
+  gifImage: {
+    width: '100%',
+    maxWidth: 200,
+    height: 120,
+    borderRadius: 8,
+    marginTop: 6,
+    alignSelf: 'flex-start',
+  },
+  gifError: {
+    width: '100%',
+    maxWidth: 200,
+    height: 120,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.02)',
+    marginTop: 6,
+    alignSelf: 'flex-start',
+  },
+  errorText: {
+    fontSize: 12,
     fontWeight: '500',
   },
 });

@@ -18,7 +18,7 @@ export interface UseCommentsResult {
   refresh: () => Promise<void>;
   
   // Optimistic comment operations
-  createComment: (content: string, parentCommentId?: number) => Promise<{ success: boolean; message?: string }>;
+  createComment: (content: string, parentCommentId?: number, giphyUrl?: string) => Promise<{ success: boolean; message?: string }>;
   deleteComment: (commentId: number) => Promise<{ success: boolean; message?: string }>;
   
   // Utility functions
@@ -113,8 +113,8 @@ export function useComments(postId: number): UseCommentsResult {
   }, [postId]);
 
   // Optimistic comment creation
-  const createComment = useCallback(async (content: string, parentCommentId?: number) => {
-    if (!content.trim() || !userProfile || !authUser) {
+  const createComment = useCallback(async (content: string, parentCommentId?: number, giphyUrl?: string) => {
+    if ((!content.trim() && !giphyUrl) || !userProfile || !authUser) {
       return { success: false, message: 'Invalid comment or user not authenticated' };
     }
 
@@ -123,7 +123,7 @@ export function useComments(postId: number): UseCommentsResult {
     const optimisticComment: Comment = {
       id: optimisticId,
       content: content.trim(),
-      giphy_url: null,
+      giphy_url: giphyUrl || null,
       post_id: postId,
       parent_comment_id: parentCommentId || null,
       user_id: authUser.id,
@@ -145,7 +145,8 @@ export function useComments(postId: number): UseCommentsResult {
       const response = await commentService.createComment({
         content: content.trim(),
         postId,
-        parentCommentId
+        parentCommentId,
+        giphyUrl
       });
 
       if (response.success && response.commentId) {
