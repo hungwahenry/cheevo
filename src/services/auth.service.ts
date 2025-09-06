@@ -132,6 +132,42 @@ export class AuthService {
   }
 
   /**
+   * Update user email address
+   * This sends confirmation emails to both old and new addresses
+   */
+  static async updateUserEmail(newEmail: string): Promise<ApiResponse<void>> {
+    try {
+      const trimmedEmail = newEmail.toLowerCase().trim();
+      
+      const { error } = await supabase.auth.updateUser({
+        email: trimmedEmail
+      });
+      
+      if (error) {
+        // Enhanced error messages for email updates
+        const errorMessage = error.message?.includes('email_address_invalid')
+          ? 'Please enter a valid email address'
+          : error.message?.includes('same_email')
+          ? 'This is already your current email address'
+          : error.message?.includes('email_taken')
+          ? 'This email address is already in use'
+          : error.message?.includes('rate_limit')
+          ? 'Too many email update attempts. Please wait before trying again'
+          : error.message || 'Failed to update email address';
+        
+        return { success: false, error: errorMessage };
+      }
+      
+      return { success: true, data: undefined };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to update email address' 
+      };
+    }
+  }
+
+  /**
    * Check if user has completed onboarding (now uses user_profiles table)
    */
   static async hasCompletedOnboarding(userId: string): Promise<boolean> {

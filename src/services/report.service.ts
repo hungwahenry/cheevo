@@ -13,6 +13,13 @@ export interface Report {
   reviewed_by: string | null;
   reviewed_at: string | null;
   created_at: string;
+  // Content details (populated when fetching reports with content)
+  reported_content?: {
+    content: string;
+    author_username?: string;
+    created_at?: string;
+    is_deleted?: boolean;
+  };
 }
 
 export interface CreateReportRequest {
@@ -130,7 +137,7 @@ class ReportService {
   }
 
   /**
-   * Get user's reports (for their own reference)
+   * Get user's reports with content details
    */
   async getUserReports(): Promise<{ success: boolean; reports?: Report[]; error?: string }> {
     try {
@@ -143,23 +150,29 @@ class ReportService {
         };
       }
 
-      const { data: reports, error } = await supabase
-        .from('reports')
-        .select('*')
-        .eq('reporter_user_id', session.user.id)
-        .order('created_at', { ascending: false });
+      // Use edge function to get reports with content
+      const { data, error } = await supabase.functions.invoke('get-user-reports', {
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      });
 
       if (error) {
         console.error('Get user reports error:', error);
         return {
           success: false,
-          error: 'Failed to load reports'
+          error: error.message || 'Failed to load reports'
+        };
+      }
+
+      if (!data.success) {
+        return {
+          success: false,
+          error: data.error || 'Failed to load reports'
         };
       }
 
       return {
         success: true,
-        reports: reports || []
+        reports: data.reports || []
       };
 
     } catch (error) {

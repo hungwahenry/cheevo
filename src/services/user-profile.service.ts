@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { UserProfile } from '@/src/types/user';
 import { ApiResponse } from '@/src/types/api';
+import { imageUploadService } from './image-upload.service';
 
 class UserProfileService {
   /**
@@ -79,6 +80,47 @@ class UserProfileService {
     }
 
     return data;
+  }
+
+  /**
+   * Update user profile with image upload
+   */
+  async updateUserProfileWithImage(
+    updates: Partial<Pick<UserProfile, 'bio'>>,
+    imageUri?: string
+  ): Promise<ApiResponse<UserProfile>> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    let avatarUrl: string | undefined = undefined;
+
+    // Upload image if provided
+    if (imageUri) {
+      const uploadResult = await imageUploadService.uploadProfilePicture(
+        session.user.id,
+        imageUri
+      );
+
+      if (!uploadResult.success) {
+        return { success: false, error: uploadResult.error };
+      }
+
+      avatarUrl = uploadResult.data.url;
+    }
+
+    // Prepare update data
+    const profileUpdates: Partial<Pick<UserProfile, 'bio' | 'avatarUrl'>> = {
+      ...updates,
+    };
+
+    if (avatarUrl) {
+      profileUpdates.avatarUrl = avatarUrl;
+    }
+
+    // Update profile with new data
+    return await this.updateUserProfile(profileUpdates);
   }
 
   /**

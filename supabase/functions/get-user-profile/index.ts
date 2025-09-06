@@ -30,6 +30,7 @@ interface UserProfile {
   };
   createdAt: string;
   updatedAt: string;
+  isBlocked?: boolean;
 }
 
 interface GetUserProfileResponse {
@@ -101,6 +102,19 @@ serve(async (req) => {
     if (uniError) {
       console.warn('University lookup failed:', uniError.message);
     }
+
+    // Check if current user has blocked the target user (only when viewing other profiles)
+    let isBlocked = false;
+    if (targetUserId !== user.id) {
+      const { data: blockCheck } = await supabaseClient
+        .from('blocked_users')
+        .select('id')
+        .eq('blocker_user_id', user.id)
+        .eq('blocked_user_id', targetUserId)
+        .single();
+      
+      isBlocked = !!blockCheck;
+    }
     
     // Transform database format to UserProfile type
     const userProfile: UserProfile = {
@@ -123,6 +137,7 @@ serve(async (req) => {
       } : undefined,
       createdAt: profile.created_at,
       updatedAt: profile.updated_at,
+      isBlocked: targetUserId !== user.id ? isBlocked : undefined,
     };
 
     const response: GetUserProfileResponse = {

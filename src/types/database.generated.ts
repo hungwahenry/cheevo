@@ -42,6 +42,30 @@ export type Database = {
         }
         Relationships: []
       }
+      blocked_users: {
+        Row: {
+          blocked_user_id: string
+          blocker_user_id: string
+          created_at: string
+          id: number
+          updated_at: string
+        }
+        Insert: {
+          blocked_user_id: string
+          blocker_user_id: string
+          created_at?: string
+          id?: number
+          updated_at?: string
+        }
+        Update: {
+          blocked_user_id?: string
+          blocker_user_id?: string
+          created_at?: string
+          id?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       comments: {
         Row: {
           content: string
@@ -435,12 +459,15 @@ export type Database = {
           email: string
           id: string
           posts_count: number | null
+          profile_visibility: string | null
           reactions_received: number | null
           total_views: number | null
           trending_score: number | null
           university_id: number
           updated_at: string
           username: string
+          who_can_comment: string | null
+          who_can_react: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -450,12 +477,15 @@ export type Database = {
           email: string
           id: string
           posts_count?: number | null
+          profile_visibility?: string | null
           reactions_received?: number | null
           total_views?: number | null
           trending_score?: number | null
           university_id: number
           updated_at?: string
           username: string
+          who_can_comment?: string | null
+          who_can_react?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -465,12 +495,15 @@ export type Database = {
           email?: string
           id?: string
           posts_count?: number | null
+          profile_visibility?: string | null
           reactions_received?: number | null
           total_views?: number | null
           trending_score?: number | null
           university_id?: number
           updated_at?: string
           username?: string
+          who_can_comment?: string | null
+          who_can_react?: string | null
         }
         Relationships: [
           {
@@ -487,6 +520,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      are_users_mutually_blocked: {
+        Args: { user1_id: string; user2_id: string }
+        Returns: boolean
+      }
       calculate_post_trending: {
         Args: { post_id_param: number }
         Returns: undefined
@@ -511,6 +548,10 @@ export type Database = {
       generate_avatar_url: {
         Args: { seed: string }
         Returns: string
+      }
+      is_user_blocked: {
+        Args: { blocked_id: string; blocker_id: string }
+        Returns: boolean
       }
       update_user_stats: {
         Args: { user_uuid: string }

@@ -25,6 +25,7 @@ type AuthContextType = {
   signOut: () => Promise<void>;
   clearError: () => void;
   checkUsernameAvailability: (username: string) => Promise<ApiResponse<boolean>>;
+  updateUserEmail: (newEmail: string) => Promise<ApiResponse<void>>;
 };
 
 // Initial state
@@ -238,6 +239,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return await userProfileService.checkUsernameAvailability(username);
   };
 
+  // Update user email
+  const updateUserEmail = async (newEmail: string): Promise<ApiResponse<void>> => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'CLEAR_ERROR' });
+
+    const result = await AuthService.updateUserEmail(newEmail);
+    
+    if (result.success) {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    } else {
+      dispatch({ type: 'SET_ERROR', payload: result.error });
+    }
+    
+    return result;
+  };
+
   const contextValue: AuthContextType = {
     state,
     sendOTP,
@@ -246,6 +263,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signOut,
     clearError,
     checkUsernameAvailability,
+    updateUserEmail,
   };
 
   return (

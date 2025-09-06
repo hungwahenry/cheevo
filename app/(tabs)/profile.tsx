@@ -11,8 +11,10 @@ import { useAuth } from '@/src/hooks/useAuth';
 import { useCurrentUserProfile } from '@/src/hooks/useProfile';
 import { useCommentsModal } from '@/src/providers/CommentsProvider';
 import React, { useState } from 'react';
-import { RefreshControl, StyleSheet } from 'react-native';
+import { RefreshControl, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Settings } from 'lucide-react-native';
+import { router } from 'expo-router';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -26,9 +28,13 @@ export default function ProfileScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const handleEditProfile = () => {
-    // TODO: Navigate to edit profile modal/screen
-    console.log('Edit profile pressed');
+  const handleProfileUpdate = (updatedProfile: any) => {
+    // Refresh the profile data to sync with updates
+    refreshProfile();
+  };
+
+  const handleSettingsPress = () => {
+    router.push('/settings');
   };
 
   const handleRefresh = async () => {
@@ -78,6 +84,13 @@ export default function ProfileScreen() {
     <View style={[styles.container, { backgroundColor }]}>
       <View style={[styles.header, { paddingTop: insets.top }]}>
         <Text variant="title" style={styles.headerTitle}>Profile</Text>
+        <TouchableOpacity 
+          onPress={handleSettingsPress}
+          style={styles.settingsButton}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Settings size={24} color={mutedColor} />
+        </TouchableOpacity>
       </View>
       
       {isProfileLoading ? (
@@ -101,7 +114,7 @@ export default function ProfileScreen() {
             <ProfileHeader
               profile={profile}
               isOwnProfile={true}
-              onEditPress={handleEditProfile}
+              onProfileUpdate={handleProfileUpdate}
             />
           }
           refreshControl={
@@ -125,6 +138,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingBottom: 12,
   },
@@ -150,6 +166,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     maxWidth: 280,
-
+  },
+  settingsButton: {
+    padding: 4,
   },
 });

@@ -33,6 +33,9 @@ export type UserProfile = {
     state: string;
   };
   
+  // Block status (only present when viewing other users)
+  isBlocked?: boolean;
+  
   createdAt: string;
   updatedAt: string;
 };

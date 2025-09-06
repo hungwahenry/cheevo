@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
-import { StyleSheet, Modal, TouchableOpacity, Alert, TextInput } from 'react-native';
-import { View } from '@/components/ui/view';
-import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
+import { Text } from '@/components/ui/text';
+import { View } from '@/components/ui/view';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ContentType, reportService } from '@/src/services/report.service';
 import { X } from 'lucide-react-native';
-import { reportService, ContentType } from '@/src/services/report.service';
+import React, { useState } from 'react';
+import { Alert, Modal, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ReportModalProps {
   visible: boolean;
@@ -174,7 +174,7 @@ export function ReportModal({
             style={styles.submitButton}
             disabled={!finalReason || isSubmitting}
           >
-            {isSubmitting ? 'Submitting...' : 'Submit Report'}
+            {isSubmitting ? 'Submitting...' : 'Submit'}
           </Button>
         </View>
       </View>

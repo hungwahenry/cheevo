@@ -20,6 +20,7 @@ export const useAuth = () => {
     signOut,
     clearError,
     checkUsernameAvailability,
+    updateUserEmail,
   } = context;
 
   return {
@@ -38,6 +39,7 @@ export const useAuth = () => {
     signOut,
     clearError,
     checkUsernameAvailability,
+    updateUserEmail,
 
     // Computed values  
     userEmail: state.authUser?.email || null,
