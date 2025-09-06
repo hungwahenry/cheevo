@@ -1,147 +1,151 @@
-# BNA UI 🚀
+# Cheevo 🎓
 
-![BNA UI Header](https://bna-ui.s3.eu-north-1.amazonaws.com/bna-ui-header.png)
+**Campus Social Media Platform**
 
-**B**uild **N**ative **A**pps - A powerful CLI for creating Expo React Native applications with a beautiful UI component library.
+A sophisticated React Native social media application designed specifically for university communities. Combines mainstream social platform engagement with privacy-first design and campus-focused networking.
 
-## ✨ Features
+## ✨ Key Features
 
-- 🎨 **Beautiful UI Components** - Pre-built, customizable components with modern design
-- 🌙 **Theme Support** - Built-in light/dark mode with seamless transitions
-- 📱 **Expo Router Ready** - Complete navigation setup with tab and stack navigation
-- 🎯 **TypeScript First** - Full TypeScript support with excellent IntelliSense
-- 📦 **Flexible Package Manager** - Works with npm, yarn, or pnpm
-- 🚀 **Zero Configuration** - Get started in seconds with sensible defaults
-- 🔧 **Highly Customizable** - Easily customize colors, spacing, and components
-- 📲 **Cross-Platform** - Perfect compatibility across iOS and Android
-- ⚡ **Performance Optimized** - Lightweight and fast components
-- 🎭 **Animation Ready** - Smooth animations with React Native Reanimated
+- 🏫 **Campus-Centric Networking** - Connect within your university or discover content globally
+- 🔒 **Advanced Privacy Controls** - Granular settings for profile visibility, reactions, and comments
+- 🔥 **Intelligent Feed Algorithms** - Trending, chronological, engagement, balanced, and discovery modes  
+- ⚡ **Real-time Engagement** - Optimistic UI updates with robust error handling
+- ✅ **University Verification** - Domain-based authentication for genuine campus communities
+- 🛡️ **Content Moderation** - Built-in reporting system and admin tools
+- 💬 **Nested Comments** - Threaded discussions with real-time updates
+- 📊 **Analytics & Insights** - Post performance and engagement metrics
+- 🎥 **Rich Media Support** - GIFs, images, and interactive content
 
-## 📦 Installation
+## 🛠 Tech Stack
+
+### Frontend
+- **React Native** + **Expo** (SDK 51+)
+- **TypeScript** for type safety
+- **Expo Router** for navigation
+- Custom UI components with theming system
+
+### Backend
+- **Supabase** (PostgreSQL + Edge Functions)
+- **Row Level Security (RLS)** for data protection
+- **Edge Functions** (Deno runtime) for server-side logic
+- **Real-time subscriptions** for live updates
+
+### Key Libraries
+- `@supabase/supabase-js` - Database and auth
+- `expo-image` - Optimized image handling
+- `lucide-react-native` - Icons
+- `react-native-reanimated` - Animations
+
+## 📦 Setup Instructions
+
+### Prerequisites
+- Node.js 18+ and npm/yarn
+- Expo CLI (`npm install -g @expo/cli`)
+- Supabase account
+
+### Installation
 
 ```bash
-# The fastest way to set up BNA UI in your Expo project:
-npx bna-ui init
+# Clone the repository
+git clone https://github.com/hungwahenry/cheevo.git
+cd cheevo
 
-# Navigate to your Expo project
-cd bna-app
+# Install dependencies
+npm install
 
-# Start adding components
-npx bna-ui add button
-npx bna-ui add card
-npx bna-ui add input
+# Set up environment variables
+cp .env.example .env
 ```
 
-## 🎨 Available Components
+### Environment Configuration
 
-| Component      | Description                       | Status         |
-| -------------- | --------------------------------- | -------------- |
-| `Button`       | Customizable button with variants | ✅ Available   |
-| `Card`         | Container component with shadow   | ✅ Available   |
-| `Input`        | Text input with validation        | ✅ Available   |
-| `Bottom Sheet` | Overlay modal component           | ✅ Available   |
-| `Spinner`      | Loading spinner and skeletons     | ✅ Available   |
-| `Avatar`       | User profile image component      | ✅ Available   |
-| `Badge`        | Small status indicator            | ✅ Available   |
-| `Date Picker`  | Date Picker component             | ✅ Available   |
-| `Switch`       | Toggle switch component           | ✅ Available   |
-| `Progress`     | Range progress component          | ✅ Available   |
-| `Charts`       | Charts components.                | 🔄 Coming Soon |
+Create a `.env` file with your Supabase credentials:
 
-## 🎯 Usage Example
-
-```tsx
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { View } from '@/components/ui/view';
-
-export default function HomeScreen() {
-  return (
-    <View style={{ flex: 1, padding: 20 }}>
-      <Card>
-        <Input placeholder='Enter your email' keyboardType='email-address' />
-        <Button
-          variant='success'
-          onPress={() => console.log('Button pressed!')}
-        >
-          Get Started
-        </Button>
-      </Card>
-    </View>
-  );
-}
+```env
+EXPO_PUBLIC_SUPABASE_URL=your_supabase_url
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+EXPO_PUBLIC_GIPHY_API_KEY=your_giphy_api_key
 ```
 
-## 🌙 Theme Configuration
+### Database Setup
 
-BNA UI comes with a flexible theming system:
+1. Create a new Supabase project
+2. Run the migration files in order from `/supabase/migrations/`
+3. Deploy the edge functions from `/supabase/functions/`
 
-```tsx
-// theme/colors.ts
-export const lightTheme = {
-  colors: {
-    background: '#FFFFFF',
-    foreground: '#000000',
-    card: '#F2F2F7',
-    cardForeground: '#000000',
-    popover: '#F2F2F7',
-    popoverForeground: '#000000',
-    primary: '#18181b',
-    primaryForeground: '#FFFFFF',
-    secondary: '#F2F2F7',
-    secondaryForeground: '#18181b',
-    muted: '#78788033',
-    mutedForeground: '#71717a',
-    // ... more colors
-  },
-};
+```bash
+# Install Supabase CLI
+npm install -g supabase
 
-export const darkTheme = {
-  colors: {
-    background: '#000000',
-    foreground: '#FFFFFF',
-    card: '#1C1C1E',
-    cardForeground: '#FFFFFF',
-    popover: '#18181b',
-    popoverForeground: '#FFFFFF',
-    primary: '#e4e4e7',
-    primaryForeground: '#18181b',
-    secondary: '#1C1C1E',
-    secondaryForeground: '#FFFFFF',
-    muted: '#78788033',
-    mutedForeground: '#a1a1aa',
-    // ... more colors
-  },
-};
+# Login to Supabase
+supabase login
+
+# Link your project
+supabase link --project-ref your-project-ref
+
+# Push database changes
+supabase db push
+
+# Deploy edge functions
+supabase functions deploy
+```
+
+### Running the App
+
+```bash
+# Start the development server
+npm start
+
+# Run on specific platforms
+npm run ios
+npm run android
+npm run web
 ```
 
 ## 📱 Platform Support
 
 - ✅ **iOS** - Full native iOS support
-- ✅ **Android** - Full native Android support
-- ✅ **Web** - Responsive web support
+- ✅ **Android** - Full native Android support  
+- ✅ **Web** - Responsive web support (Expo Web)
 - ✅ **Expo Go** - Development with Expo Go
 - ✅ **EAS Build** - Production builds with EAS
 
-## 🛠️ Development
+## 🏗️ Architecture Highlights
 
-```bash
-# Clone the repository
-git clone https://github.com/ahmedbna/bna-ui.git
-cd bna-ui
+### Privacy-First Design
+- **Database-level privacy enforcement** with PostgreSQL functions
+- **Client-side privacy state management** prevents unauthorized interactions
+- **Precomputed permissions** for optimal performance
+- **Comprehensive blocking system** with mutual block detection
 
-# Install dependencies
-npm install
+### Performance Optimizations
+- **Optimistic UI updates** for instant user feedback
+- **Edge function processing** for reduced client load
+- **Image optimization** with Expo Image
+- **Efficient pagination** and infinite scroll
 
-# Build for production
-npm run build
-```
+### Security Features
+- **Row Level Security (RLS)** on all database tables
+- **JWT-based authentication** with university email verification
+- **Input validation** and sanitization
+- **Rate limiting** and abuse prevention
+
+## 🔧 Key Components
+
+- **Feed System** - Multiple algorithms with privacy filtering
+- **Comment System** - Nested threading with optimistic updates
+- **User Profiles** - Privacy-controlled profile management
+- **University System** - Domain verification and campus scoping
+- **Moderation Tools** - Reporting and content management
+- **Analytics** - Post engagement and trending algorithms
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+We welcome contributions! Please feel free to submit a Pull Request.
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
@@ -149,30 +153,6 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🔗 Links
-
-- 📚 **Documentation**: [https://ui.ahmedbna.com](https://ui.ahmedbna.com)
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/ahmedbna/ui/issues)
-- 💬 **Linkedin**: [@ahmedbna](https://www.linkedin.com/in/ahmedbna/)
-- 𝕏 **X**: [@ahmedbnaa](https://x.com/ahmedbnaa)
-
-## ⭐ Support
-
-If you find BNA UI helpful, please consider giving it a star on GitHub! It helps us a lot.
-
-[![GitHub stars](https://img.shields.io/github/stars/ahmedbna/ui?style=social)](https://github.com/ahmedbna/ui)
-
-## 📈 Stats
-
-![GitHub package.json version](https://img.shields.io/github/package-json/v/ahmedbna/ui)
-![npm](https://img.shields.io/npm/v/bna-ui)
-![npm](https://img.shields.io/npm/dm/bna-ui)
-![GitHub](https://img.shields.io/github/license/ahmedbna/ui)
-
 ---
 
-Made with ❤️ by [Ahmed BNA](https://github.com/ahmedbna)
+Made with 💻 by [Henry Wong](https://github.com/hungwahenry)
