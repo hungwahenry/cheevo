@@ -88,46 +88,51 @@ serve(async (req) => {
       throw new Error('Post not found');
     }
 
-    // Get all comments for the post (2-level structure)
-    const { data: comments, error: commentsError } = await supabaseClient
-      .from('comments')
-      .select(`
-        id,
-        content,
-        giphy_url,
-        post_id,
-        parent_comment_id,
-        user_id,
-        created_at,
-        updated_at,
-        user_profiles!comments_user_id_user_profiles_fkey (
-          username,
-          avatar_url,
-          university_id
-        )
-      `)
-      .eq('post_id', postId)
-      .eq('is_flagged', false)
-      .order('created_at', { ascending: true })
-      .range(offset, offset + limit - 1);
+    // Get privacy-filtered comments
+    const { data: filteredComments, error: commentsError } = await supabaseClient
+      .rpc('get_visible_comments', {
+        viewer_id: user.id,
+        post_id_param: postId
+      });
 
     if (commentsError) {
       console.error('Error fetching comments:', commentsError);
       throw new Error('Failed to fetch comments');
     }
 
-    // Get total count for pagination
-    const { count: totalCount } = await supabaseClient
-      .from('comments')
-      .select('*', { count: 'exact', head: true })
-      .eq('post_id', postId)
-      .eq('is_flagged', false);
+    // Apply pagination to filtered results
+    const paginatedComments = (filteredComments || []).slice(offset, offset + limit);
+    
+    // Get user profiles for the paginated comments
+    const commentsWithProfiles = await Promise.all(
+      paginatedComments.map(async (comment: any) => {
+        const { data: profile } = await supabaseClient
+          .from('user_profiles')
+          .select('username, avatar_url, university_id')
+          .eq('id', comment.comment_user_id)
+          .single();
+
+        return {
+          id: comment.comment_id,
+          content: comment.comment_content,
+          giphy_url: null, // Not included in privacy function yet
+          post_id: postId,
+          parent_comment_id: null, // Not included in privacy function yet  
+          user_id: comment.comment_user_id,
+          created_at: comment.comment_created_at,
+          updated_at: comment.comment_updated_at,
+          user_profiles: profile || null
+        };
+      })
+    );
+
+    const totalCount = (filteredComments || []).length;
 
     const response: GetCommentsResponse = {
       success: true,
-      comments: comments || [],
-      hasMore: (offset + limit) < (totalCount || 0),
-      totalCount: totalCount || 0
+      comments: commentsWithProfiles,
+      hasMore: (offset + limit) < totalCount,
+      totalCount: totalCount
     };
 
     return Response.json(response, {

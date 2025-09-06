@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { CommentsSheet } from '@/components/comments/CommentsSheet';
 
 interface CommentsContextType {
-  showComments: (postId: number) => void;
+  showComments: (postId: number, commentingDisabled?: boolean) => void;
   hideComments: () => void;
   isVisible: boolean;
   currentPostId: number | null;
@@ -17,15 +17,18 @@ interface CommentsProviderProps {
 export function CommentsProvider({ children }: CommentsProviderProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [currentPostId, setCurrentPostId] = useState<number | null>(null);
+  const [commentingDisabled, setCommentingDisabled] = useState(false);
 
-  const showComments = (postId: number) => {
+  const showComments = (postId: number, commentingDisabled = false) => {
     setCurrentPostId(postId);
+    setCommentingDisabled(commentingDisabled);
     setIsVisible(true);
   };
 
   const hideComments = () => {
     setIsVisible(false);
     setCurrentPostId(null);
+    setCommentingDisabled(false);
   };
 
   const contextValue: CommentsContextType = {
@@ -45,6 +48,7 @@ export function CommentsProvider({ children }: CommentsProviderProps) {
           isVisible={isVisible}
           onClose={hideComments}
           postId={currentPostId}
+          commentingDisabled={commentingDisabled}
         />
       )}
     </CommentsContext.Provider>

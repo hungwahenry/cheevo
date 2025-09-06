@@ -14,6 +14,7 @@ export interface UseFeedReturn {
   isLoadingMore: boolean;
   hasMore: boolean;
   error: string | null;
+  reactionDisabled: Record<number, boolean>; // postId -> disabled state
   
   loadMore: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -30,6 +31,7 @@ export const useFeed = ({ algorithm, scope }: UseFeedOptions): UseFeedReturn => 
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
+  const [reactionDisabled, setReactionDisabled] = useState<Record<number, boolean>>({});
 
   // Load feed
   const loadFeed = async (reset = false) => {
@@ -51,9 +53,23 @@ export const useFeed = ({ algorithm, scope }: UseFeedOptions): UseFeedReturn => 
       if (reset) {
         setPosts(response.posts);
         setOffset(response.nextOffset);
+        // Update disabled states from precomputed values
+        const newReactionDisabled: Record<number, boolean> = {};
+        response.posts.forEach(post => {
+          newReactionDisabled[post.id] = !post.can_react;
+        });
+        setReactionDisabled(newReactionDisabled);
       } else {
         setPosts(prev => [...prev, ...response.posts]);
         setOffset(response.nextOffset);
+        // Update disabled states for new posts
+        setReactionDisabled(prev => {
+          const updated = { ...prev };
+          response.posts.forEach(post => {
+            updated[post.id] = !post.can_react;
+          });
+          return updated;
+        });
       }
       
       setHasMore(response.hasMore);
@@ -138,7 +154,12 @@ export const useFeed = ({ algorithm, scope }: UseFeedOptions): UseFeedReturn => 
         }));
         console.error('Reaction toggle failed:', response.error);
       }
-    } catch (error) {
+    } catch (error: any) {
+      // Check if it's a privacy violation (403)
+      if (error.status === 403) {
+        setReactionDisabled(prev => ({ ...prev, [postId]: true }));
+      }
+      
       // Revert optimistic update on error
       setPosts(prev => prev.map(post => {
         if (post.id === postId) {
@@ -181,6 +202,7 @@ export const useFeed = ({ algorithm, scope }: UseFeedOptions): UseFeedReturn => 
     isLoadingMore,
     hasMore,
     error,
+    reactionDisabled,
     loadMore,
     refresh,
     toggleReaction,

@@ -26,11 +26,15 @@ interface LikedPost {
   is_flagged: boolean;
   created_at: string;
   updated_at: string;
+  can_react: boolean;
+  can_comment: boolean;
   user_profiles: {
     username: string;
     avatar_url: string | null;
     trending_score: number | null;
     university_id: number;
+    who_can_react: string;
+    who_can_comment: string;
   } | null;
   universities: {
     name: string;
@@ -130,7 +134,9 @@ serve(async (req) => {
             username,
             avatar_url,
             trending_score,
-            university_id
+            university_id,
+            who_can_react,
+            who_can_comment
           ),
           universities!posts_university_id_fkey (
             name,
@@ -152,13 +158,26 @@ serve(async (req) => {
       throw new Error(error.message);
     }
 
-    // Transform likes to show the posts they liked with proper FeedPost format
-    const likedPosts: LikedPost[] = (likes || [])
-      .map(like => like.posts)
-      .filter(post => post && post.id)
-      .map(post => {
+    // Transform likes to show the posts they liked with proper FeedPost format and privacy states
+    const likedPosts: LikedPost[] = await Promise.all((likes || [])
+      .map((like: any) => like.posts)
+      .filter((post: any) => post && post.id)
+      .map(async (post: any) => {
         const reactions = post.reactions || [];
         const userReaction = reactions.find((r: any) => r.user_id === user.id) || null;
+        
+        // Precompute privacy-based disabled states using database functions
+        const { data: canReact } = await supabaseClient
+          .rpc('can_react_to_posts', {
+            viewer_id: user.id,
+            target_id: post.user_id
+          });
+          
+        const { data: canComment } = await supabaseClient
+          .rpc('can_comment_on_posts', {
+            viewer_id: user.id,
+            target_id: post.user_id
+          });
         
         return {
           ...post,
@@ -170,8 +189,11 @@ serve(async (req) => {
           is_trending: post.is_trending || false,
           trending_score: post.trending_score || 0,
           is_flagged: post.is_flagged || false,
+          // Add privacy-based interaction permissions
+          can_react: canReact === true,
+          can_comment: canComment === true,
         };
-      }) as LikedPost[];
+      })) as LikedPost[];
 
     const response: GetUserLikesResponse = {
       success: true,

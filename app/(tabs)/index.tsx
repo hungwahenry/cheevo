@@ -45,7 +45,7 @@ export default function FeedScreen() {
         algorithm={selectedAlgorithm}
         scope="campus"
         showUniversity={true}
-        onComment={showComments}
+        onComment={(postId, commentingDisabled) => showComments(postId, commentingDisabled)}
       />
     </View>
   );

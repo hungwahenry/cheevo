@@ -26,11 +26,15 @@ interface UserPost {
   is_flagged: boolean;
   created_at: string;
   updated_at: string;
+  can_react: boolean;
+  can_comment: boolean;
   user_profiles: {
     username: string;
     avatar_url: string | null;
     trending_score: number | null;
     university_id: number;
+    who_can_react: string;
+    who_can_comment: string;
   } | null;
   universities: {
     name: string;
@@ -97,6 +101,24 @@ serve(async (req) => {
       throw new Error('User ID is required');
     }
 
+    // Check if viewer can access this user's posts
+    if (userId !== user.id) {
+      const { data: canView, error: privacyError } = await supabaseClient
+        .rpc('can_view_posts', {
+          viewer_id: user.id,
+          target_id: userId
+        });
+
+      if (privacyError) {
+        console.error('Privacy check error:', privacyError);
+        throw new Error('Failed to check post permissions');
+      }
+
+      if (!canView) {
+        throw new Error('User posts are private or not accessible');
+      }
+    }
+
     // Validate pagination parameters
     if (limit < 1 || limit > 100) {
       throw new Error('Limit must be between 1 and 100');
@@ -127,7 +149,9 @@ serve(async (req) => {
           username,
           avatar_url,
           trending_score,
-          university_id
+          university_id,
+          who_can_react,
+          who_can_comment
         ),
         universities!posts_university_id_fkey (
           name,
@@ -149,23 +173,54 @@ serve(async (req) => {
       throw new Error(error.message);
     }
 
-    // Process posts to add user reactions and ensure proper format
-    const processedPosts: UserPost[] = (posts || []).map(post => {
-      const reactions = post.reactions || [];
-      const userReaction = reactions.find((r: any) => r.user_id === user.id) || null;
+    // Process posts to add user reactions, privacy states, and filter blocked users
+    const processedPosts: UserPost[] = await Promise.all((posts || []).map(async (post: any) => {
+      // Get privacy-filtered reactions
+      const { data: filteredReactions } = await supabaseClient
+        .rpc('get_visible_reactions', {
+          viewer_id: user.id,
+          post_id_param: post.id
+        });
+      
+      const reactions = filteredReactions || [];
+      const userReaction = reactions.find((r: any) => r.reaction_user_id === user.id) || null;
+      
+      // Precompute privacy-based disabled states using database functions
+      const { data: canReact } = await supabaseClient
+        .rpc('can_react_to_posts', {
+          viewer_id: user.id,
+          target_id: post.user_id
+        });
+        
+      const { data: canComment } = await supabaseClient
+        .rpc('can_comment_on_posts', {
+          viewer_id: user.id,
+          target_id: post.user_id
+        });
       
       return {
         ...post,
-        user_reaction: userReaction,
-        reactions: reactions,
+        user_reaction: userReaction ? {
+          id: userReaction.reaction_id,
+          user_id: userReaction.reaction_user_id,
+          created_at: userReaction.reaction_created_at
+        } : null,
+        reactions: reactions.map((r: any) => ({
+          id: r.reaction_id,
+          user_id: r.reaction_user_id,
+          created_at: r.reaction_created_at
+        })),
         reactions_count: post.reactions_count || 0,
         comments_count: post.comments_count || 0,
         views_count: post.views_count || 0,
         is_trending: post.is_trending || false,
         trending_score: post.trending_score || 0,
         is_flagged: post.is_flagged || false,
+        // Add privacy-based interaction permissions
+        can_react: canReact === true,
+        can_comment: canComment === true,
       };
-    });
+    }));
 
     const response: GetUserPostsResponse = {
       success: true,
@@ -196,6 +251,8 @@ serve(async (req) => {
     } else if (errorMessage.includes('Invalid or expired token') || 
                errorMessage.includes('Missing authorization header')) {
       statusCode = 401;
+    } else if (errorMessage.includes('User posts are private or not accessible')) {
+      statusCode = 403;
     }
 
     const errorResponse: GetUserPostsResponse = {

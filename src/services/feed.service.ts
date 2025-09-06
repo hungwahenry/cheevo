@@ -16,6 +16,8 @@ export interface FeedPost extends Tables<'posts'> {
     avatar_url: string | null;
     trending_score: number | null;
     university_id: number;
+    who_can_react: string;
+    who_can_comment: string;
   } | null;
   universities: {
     name: string;
@@ -32,6 +34,8 @@ export interface FeedPost extends Tables<'posts'> {
     user_id: string;
     created_at: string;
   } | null;
+  can_react: boolean;
+  can_comment: boolean;
 }
 
 export interface FeedOptions {

@@ -27,12 +27,16 @@ interface FeedPost {
   is_flagged: boolean | null;
   created_at: string;
   updated_at: string;
+  can_react: boolean;
+  can_comment: boolean;
   
   user_profiles: {
     username: string;
     avatar_url: string | null;
     trending_score: number | null;
     university_id: number;
+    who_can_react: string;
+    who_can_comment: string;
   } | null;
   universities: {
     name: string;
@@ -146,7 +150,34 @@ serve(async (req) => {
       timestamp: new Date().toISOString()
     });
 
-    // Build base query with joins
+    // Get privacy-filtered post IDs
+    const scopeFilter = scope === 'campus' ? 'campus' : 'global';
+    const { data: visiblePostIds, error: privacyError } = await supabaseClient
+      .rpc('get_visible_post_ids', {
+        viewer_id: user.id,
+        scope_filter: scopeFilter
+      });
+
+    if (privacyError) {
+      console.error('Privacy filter error:', privacyError);
+      throw new Error('Failed to apply privacy filters');
+    }
+
+    if (!visiblePostIds || visiblePostIds.length === 0) {
+      // No visible posts - return empty feed
+      const emptyResponse: FeedResponse = {
+        posts: [],
+        hasMore: false,
+        nextOffset: 0,
+        algorithm,
+        config: { showReactionCounts: true, showCommentCounts: true }
+      };
+      return Response.json(emptyResponse, { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Build base query with privacy-filtered post IDs
     let query = supabaseClient
       .from('posts')
       .select(`
@@ -167,7 +198,9 @@ serve(async (req) => {
           username,
           avatar_url,
           trending_score,
-          university_id
+          university_id,
+          who_can_react,
+          who_can_comment
         ),
         universities!posts_university_id_fkey (
           name,
@@ -180,12 +213,7 @@ serve(async (req) => {
           created_at
         )
       `)
-      .eq('is_flagged', false);
-
-    // Apply scope filtering
-    if (scope === 'campus') {
-      query = query.eq('university_id', userProfile.university_id);
-    }
+      .in('id', visiblePostIds.map(p => p.post_id));
 
     // Apply algorithm-specific filters and ordering
     switch (algorithm) {
@@ -246,23 +274,54 @@ serve(async (req) => {
       timestamp: new Date().toISOString()
     });
 
-    // Process posts to add user reactions
-    const processedPosts: FeedPost[] = (posts || []).map(post => {
-      const reactions = post.reactions || [];
-      const userReaction = reactions.find((r: any) => r.user_id === user.id) || null;
+    // Process posts to add user reactions, privacy states, and filter blocked users
+    const processedPosts: FeedPost[] = await Promise.all((posts || []).map(async (post: any) => {
+      // Get privacy-filtered reactions
+      const { data: filteredReactions } = await supabaseClient
+        .rpc('get_visible_reactions', {
+          viewer_id: user.id,
+          post_id_param: post.id
+        });
+      
+      const reactions = filteredReactions || [];
+      const userReaction = reactions.find((r: any) => r.reaction_user_id === user.id) || null;
+      
+      // Precompute privacy-based disabled states using database functions
+      const { data: canReact } = await supabaseClient
+        .rpc('can_react_to_posts', {
+          viewer_id: user.id,
+          target_id: post.user_id
+        });
+        
+      const { data: canComment } = await supabaseClient
+        .rpc('can_comment_on_posts', {
+          viewer_id: user.id,
+          target_id: post.user_id
+        });
       
       return {
         ...post,
-        user_reaction: userReaction,
-        reactions: reactions,
+        user_reaction: userReaction ? {
+          id: userReaction.reaction_id,
+          user_id: userReaction.reaction_user_id,
+          created_at: userReaction.reaction_created_at
+        } : null,
+        reactions: reactions.map((r: any) => ({
+          id: r.reaction_id,
+          user_id: r.reaction_user_id,
+          created_at: r.reaction_created_at
+        })),
         reactions_count: post.reactions_count || 0,
         comments_count: post.comments_count || 0,
         views_count: post.views_count || 0,
         is_trending: post.is_trending || false,
         trending_score: post.trending_score || 0,
         is_flagged: post.is_flagged || false,
+        // Add privacy-based interaction permissions
+        can_react: canReact === true,
+        can_comment: canComment === true,
       };
-    });
+    }));
 
     const feedResponse: FeedResponse = {
       posts: processedPosts,

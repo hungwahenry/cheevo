@@ -105,7 +105,7 @@ serve(async (req) => {
     // Verify the post exists and is not flagged
     const { data: post, error: postError } = await supabaseClient
       .from('posts')
-      .select('id, is_flagged')
+      .select('id, is_flagged, user_id')
       .eq('id', postId)
       .single();
 
@@ -115,6 +115,22 @@ serve(async (req) => {
 
     if (post.is_flagged) {
       throw new Error('Cannot comment on flagged posts');
+    }
+
+    // Check if user can comment on this post
+    const { data: canComment, error: privacyError } = await supabaseClient
+      .rpc('can_comment_on_posts', {
+        viewer_id: user.id,
+        target_id: post.user_id
+      });
+
+    if (privacyError) {
+      console.error('Privacy check error:', privacyError);
+      throw new Error('Failed to check comment permissions');
+    }
+
+    if (!canComment) {
+      throw new Error('You cannot comment on this post');
     }
 
     // Simple 2-level validation: if replying to a comment, ensure parent exists and is valid
@@ -262,7 +278,8 @@ serve(async (req) => {
                errorMessage.includes('Post not found') ||
                errorMessage.includes('Parent comment not found')) {
       statusCode = 404;
-    } else if (errorMessage.includes('Cannot comment on flagged posts')) {
+    } else if (errorMessage.includes('Cannot comment on flagged posts') ||
+               errorMessage.includes('You cannot comment on this post')) {
       statusCode = 403;
     }
 

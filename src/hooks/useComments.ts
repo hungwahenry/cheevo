@@ -11,6 +11,7 @@ export interface UseCommentsResult {
   hasMore: boolean;
   error: string | null;
   totalCount: number;
+  commentingDisabled: boolean; // Privacy restriction
   
   // Actions
   loadComments: () => Promise<void>;
@@ -26,7 +27,7 @@ export interface UseCommentsResult {
   getReplyCount: (commentId: number) => number;
 }
 
-export function useComments(postId: number): UseCommentsResult {
+export function useComments(postId: number, commentingDisabled = false): UseCommentsResult {
   const { userProfile, authUser } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -163,12 +164,12 @@ export function useComments(postId: number): UseCommentsResult {
         setTotalCount(prev => Math.max(0, prev - 1));
         return { success: false, message: response.message };
       }
-    } catch (error) {
-      // 4. REVERT on error
+    } catch (error: any) {
+      // REVERT on error
       setComments(prev => prev.filter(comment => comment.id !== optimisticId));
       setTotalCount(prev => Math.max(0, prev - 1));
       console.error('Error creating comment:', error);
-      return { success: false, message: 'Failed to create comment' };
+      return { success: false, message: error.message || 'Failed to create comment' };
     }
   }, [postId, userProfile, authUser]);
 
@@ -225,6 +226,7 @@ export function useComments(postId: number): UseCommentsResult {
     isLoading,
     isLoadingMore,
     hasMore,
+    commentingDisabled,
     error,
     totalCount,
     loadComments: () => loadComments(true),

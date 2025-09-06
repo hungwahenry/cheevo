@@ -41,7 +41,7 @@ export default function ExploreScreen() {
         algorithm={selectedAlgorithm}
         scope="global"
         showUniversity={true}
-        onComment={showComments}
+        onComment={(postId, commentingDisabled) => showComments(postId, commentingDisabled)}
       />
     </View>
   );

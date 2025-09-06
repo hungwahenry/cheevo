@@ -71,6 +71,22 @@ serve(async (req) => {
       throw new Error('Cannot react to flagged post');
     }
 
+    // Check if user can react to this post
+    const { data: canReact, error: privacyError } = await supabaseClient
+      .rpc('can_react_to_posts', {
+        viewer_id: user.id,
+        target_id: post.user_id
+      });
+
+    if (privacyError) {
+      console.error('Privacy check error:', privacyError);
+      throw new Error('Failed to check reaction permissions');
+    }
+
+    if (!canReact) {
+      throw new Error('You cannot react to this post');
+    }
+
     // Check if user already has a reaction on this post
     const { data: existingReaction, error: checkError } = await supabaseClient
       .from('reactions')
@@ -160,6 +176,8 @@ serve(async (req) => {
     } else if (errorMessage.includes('Invalid or expired token') ||
                errorMessage.includes('Missing authorization header')) {
       statusCode = 401;
+    } else if (errorMessage.includes('You cannot react to this post')) {
+      statusCode = 403;
     } else if (errorMessage.includes('Post not found')) {
       statusCode = 404;
     }

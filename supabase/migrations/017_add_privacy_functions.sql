@@ -90,9 +90,9 @@ DECLARE
     target_university_id INTEGER;
     is_blocked BOOLEAN;
 BEGIN
-    -- Users can't react to their own posts (business rule)
+    -- Users can react to their own posts
     IF viewer_id = target_id THEN
-        RETURN FALSE;
+        RETURN TRUE;
     END IF;
     
     -- Check if either user has blocked the other

@@ -83,7 +83,9 @@ export default function UserProfileScreen() {
       ) : profileHook.error ? (
         <View style={styles.centerContainer}>
           <Text style={[styles.errorText, { color: mutedColor }]}>
-            {profileHook.error}
+            {profileHook.error.includes('privacy') || profileHook.error.includes('blocked') || profileHook.error.includes('private')
+              ? "This profile is inaccessible due to user privacy settings" 
+              : profileHook.error}
           </Text>
           <Button 
             variant="outline" 

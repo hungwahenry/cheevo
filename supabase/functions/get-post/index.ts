@@ -52,6 +52,18 @@ serve(async (req) => {
       throw new Error('User profile not found');
     }
 
+    // First check if user can view this specific post
+    const { data: visiblePostIds } = await supabaseClient
+      .rpc('get_visible_post_ids', {
+        viewer_id: user.id,
+        scope_filter: 'all'
+      });
+
+    const canViewPost = visiblePostIds?.some(p => p.post_id === postId);
+    if (!canViewPost) {
+      throw new Error('Post not found');
+    }
+
     // Fetch the post with all required relations
     const { data: post, error: postError } = await supabaseClient
       .from('posts')
@@ -81,17 +93,21 @@ serve(async (req) => {
       `)
       .eq('id', postId)
       .eq('user_reaction.user_id', user.id)
-      .eq('is_flagged', false) // Only show non-flagged posts
       .single()
 
     if (postError || !post) {
       throw new Error('Post not found');
     }
 
-    // Check if post is flagged and user is not owner
-    if (post.is_flagged && post.user_id !== user.id) {
-      throw new Error('Post not found');
-    }
+    // Get privacy-filtered reactions for this post
+    const { data: filteredReactions } = await supabaseClient
+      .rpc('get_visible_reactions', {
+        viewer_id: user.id,
+        post_id_param: postId
+      });
+
+    const reactions = filteredReactions || [];
+    const userReaction = reactions.find((r: any) => r.reaction_user_id === user.id) || null;
 
     // Track the post view
     try {
@@ -112,8 +128,17 @@ serve(async (req) => {
       success: true,
       post: {
         ...post,
-        // Flatten user_reaction for easier access
-        user_reaction: post.user_reaction?.[0] || null
+        // Replace reactions with privacy-filtered ones
+        reactions: reactions.map((r: any) => ({
+          id: r.reaction_id,
+          user_id: r.reaction_user_id,
+          created_at: r.reaction_created_at
+        })),
+        user_reaction: userReaction ? {
+          id: userReaction.reaction_id,
+          user_id: userReaction.reaction_user_id,
+          created_at: userReaction.reaction_created_at
+        } : null
       }
     }, {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

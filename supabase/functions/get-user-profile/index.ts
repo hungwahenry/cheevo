@@ -76,6 +76,24 @@ serve(async (req) => {
     const requestBody: GetUserProfileRequest = await req.json();
     const targetUserId = requestBody.userId || user.id;
 
+    // Check if viewer can access this profile
+    if (targetUserId !== user.id) {
+      const { data: canView, error: privacyError } = await supabaseClient
+        .rpc('can_view_profile', {
+          viewer_id: user.id,
+          target_id: targetUserId
+        });
+
+      if (privacyError) {
+        console.error('Privacy check error:', privacyError);
+        throw new Error('Failed to check profile permissions');
+      }
+
+      if (!canView) {
+        throw new Error('Profile is private or not accessible');
+      }
+    }
+
     // Get user profile
     const { data: profile, error } = await supabaseClient
       .from('user_profiles')
@@ -166,6 +184,8 @@ serve(async (req) => {
     } else if (errorMessage.includes('Invalid or expired token') || 
                errorMessage.includes('Missing authorization header')) {
       statusCode = 401;
+    } else if (errorMessage.includes('Profile is private or not accessible')) {
+      statusCode = 403;
     } else if (errorMessage.includes('User profile not found')) {
       statusCode = 404;
     }
